@@ -18,20 +18,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         
         <nav className="flex gap-6 font-hand text-xl">
           <Link href="/">
-            <a className={cn(
-              "hover:text-accent transition-colors relative",
+            <span className={cn(
+              "hover:text-accent transition-colors relative cursor-pointer",
               location === "/" && "text-accent font-bold after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-0.5 after:bg-accent/50 after:rounded-full"
             )}>
               Daily Log
-            </a>
+            </span>
           </Link>
           <Link href="/goals">
-            <a className={cn(
-              "hover:text-accent transition-colors relative",
+            <span className={cn(
+              "hover:text-accent transition-colors relative cursor-pointer",
               location === "/goals" && "text-accent font-bold after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-0.5 after:bg-accent/50 after:rounded-full"
             )}>
               Yearly Goals
-            </a>
+            </span>
           </Link>
         </nav>
       </header>
