@@ -1,30 +1,11 @@
 import { useForm } from "react-hook-form";
-import { Plus, Trash2, Dumbbell } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { WorkoutSet, InsertWorkoutSet } from "@shared/schema";
-
-const EXERCISES = [
-  "Squat",
-  "Bench Press",
-  "Deadlift",
-  "Overhead Press",
-  "Barbell Row",
-  "Pull Up",
-  "Dumbbell Curl",
-  "Tricep Extension",
-];
 
 export default function Home() {
   const queryClient = useQueryClient();
@@ -66,7 +47,7 @@ export default function Home() {
     },
   });
 
-  const { register, handleSubmit, reset, setValue } = useForm<InsertWorkoutSet>();
+  const { register, handleSubmit, reset } = useForm<InsertWorkoutSet>();
 
   const onSubmit = (data: InsertWorkoutSet) => {
     createMutation.mutate(data);
@@ -89,21 +70,13 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
               <div className="md:col-span-5">
                 <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Exercise</label>
-                <Select onValueChange={(val) => setValue("exercise", val)}>
-                  <SelectTrigger 
-                    data-testid="select-exercise"
-                    className="font-mono bg-transparent border-0 border-b-2 border-muted-foreground/20 rounded-none focus:ring-0 px-0 focus:border-primary h-auto py-2"
-                  >
-                    <SelectValue placeholder="Select movement..." />
-                  </SelectTrigger>
-                  <SelectContent className="font-mono">
-                    {EXERCISES.map((ex) => (
-                      <SelectItem key={ex} value={ex} data-testid={`option-${ex.toLowerCase().replace(/\s+/g, '-')}`}>
-                        {ex}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input 
+                  type="text" 
+                  data-testid="input-exercise"
+                  {...register("exercise", { required: true })}
+                  className="font-mono bg-transparent border-0 border-b-2 border-muted-foreground/20 rounded-none focus-visible:ring-0 px-0 focus-visible:border-primary"
+                  placeholder="e.g. Squat, Bench Press..."
+                />
               </div>
 
               <div className="md:col-span-3">
