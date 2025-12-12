@@ -20,6 +20,7 @@ export type User = typeof users.$inferSelect;
 export const workoutSets = pgTable("workout_sets", {
   id: serial("id").primaryKey(),
   exercise: text("exercise").notNull(),
+  sets: integer("sets").notNull().default(1),
   weight: integer("weight").notNull(),
   reps: integer("reps").notNull(),
   rpe: real("rpe"),

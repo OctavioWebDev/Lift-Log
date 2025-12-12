@@ -51,7 +51,7 @@ export default function Home() {
 
   const onSubmit = (data: InsertWorkoutSet) => {
     createMutation.mutate(data);
-    reset({ exercise: data.exercise, weight: data.weight, reps: data.reps });
+    reset({ exercise: data.exercise, sets: data.sets, weight: data.weight, reps: data.reps });
   };
 
   const removeSet = (id: number) => {
@@ -67,8 +67,8 @@ export default function Home() {
           </h2>
           
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              <div className="md:col-span-5">
+            <div className="grid grid-cols-2 md:grid-cols-12 gap-4 items-end">
+              <div className="col-span-2 md:col-span-4">
                 <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Exercise</label>
                 <Input 
                   type="text" 
@@ -79,7 +79,18 @@ export default function Home() {
                 />
               </div>
 
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
+                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Sets</label>
+                <Input 
+                  type="number" 
+                  data-testid="input-sets"
+                  {...register("sets", { required: true, valueAsNumber: true })}
+                  className="font-mono bg-transparent border-0 border-b-2 border-muted-foreground/20 rounded-none focus-visible:ring-0 px-0 focus-visible:border-primary"
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="md:col-span-2">
                 <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Weight (lbs)</label>
                 <Input 
                   type="number" 
@@ -122,7 +133,7 @@ export default function Home() {
               <span className="absolute -bottom-1 left-0 w-full h-1 bg-yellow-200/60 -rotate-1"></span>
             </h2>
             <div className="font-mono text-sm text-muted-foreground" data-testid="text-total-volume">
-              Total Volume: {sets.reduce((acc, s) => acc + (s.weight * s.reps), 0).toLocaleString()} lbs
+              Total Volume: {sets.reduce((acc, s) => acc + (s.sets * s.weight * s.reps), 0).toLocaleString()} lbs
             </div>
           </div>
 
@@ -163,12 +174,16 @@ export default function Home() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-8 font-mono text-lg">
-                        <div className="w-24 text-right">
+                      <div className="flex items-center gap-6 font-mono text-lg">
+                        <div className="w-14 text-right">
+                          <span className="font-bold" data-testid={`text-sets-${set.id}`}>{set.sets}</span> 
+                          <span className="text-sm text-muted-foreground">sets</span>
+                        </div>
+                        <div className="w-20 text-right">
                           <span className="font-bold" data-testid={`text-weight-${set.id}`}>{set.weight}</span> 
                           <span className="text-sm text-muted-foreground">lbs</span>
                         </div>
-                        <div className="w-16 text-right">
+                        <div className="w-14 text-right">
                           <span className="font-bold" data-testid={`text-reps-${set.id}`}>{set.reps}</span> 
                           <span className="text-sm text-muted-foreground">reps</span>
                         </div>
