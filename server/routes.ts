@@ -88,7 +88,7 @@ export async function registerRoutes(
         });
       }
       
-      const goal = await storage.updateGoal(req.params.exercise, result.data);
+      const goal = await storage.updateGoal(decodeURIComponent(req.params.exercise), result.data);
       if (!goal) {
         return res.status(404).json({ message: "Goal not found" });
       }
@@ -97,6 +97,21 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating goal:", error);
       res.status(500).json({ message: "Failed to update goal" });
+    }
+  });
+
+  app.delete("/api/goals/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      
+      await storage.deleteGoal(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      res.status(500).json({ message: "Failed to delete goal" });
     }
   });
 
