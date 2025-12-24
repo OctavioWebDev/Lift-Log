@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { Trash2 } from "lucide-react";
+import { Trash2, Copy } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,27 @@ export default function Home() {
     },
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: async (set: WorkoutSet) => {
+      const response = await fetch('/api/workout-sets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exercise: set.exercise,
+          sets: set.sets,
+          weight: set.weight,
+          reps: set.reps,
+          date: new Date().toISOString(),
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to duplicate workout set');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+    },
+  });
+
   const { register, handleSubmit, reset } = useForm<InsertWorkoutSet>();
 
   const onSubmit = (data: InsertWorkoutSet) => {
@@ -56,6 +77,10 @@ export default function Home() {
 
   const removeSet = (id: number) => {
     deleteMutation.mutate(id);
+  };
+
+  const duplicateSet = (set: WorkoutSet) => {
+    duplicateMutation.mutate(set);
   };
 
   return (
@@ -187,6 +212,14 @@ export default function Home() {
                           <span className="font-bold" data-testid={`text-reps-${set.id}`}>{set.reps}</span> 
                           <span className="text-sm text-muted-foreground">reps</span>
                         </div>
+                        <button 
+                          onClick={() => duplicateSet(set)}
+                          data-testid={`button-duplicate-${set.id}`}
+                          className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors"
+                          disabled={duplicateMutation.isPending}
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={() => removeSet(set.id)}
                           data-testid={`button-delete-${set.id}`}
