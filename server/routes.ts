@@ -20,6 +20,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/workout-sets-all", async (req, res) => {
+    try {
+      const sets = await storage.getAllWorkoutSets();
+      res.json(sets);
+    } catch (error) {
+      console.error("Error fetching all workout sets:", error);
+      res.status(500).json({ message: "Failed to fetch workout sets" });
+    }
+  });
+
   app.post("/api/workout-sets", async (req, res) => {
     try {
       const result = insertWorkoutSetSchema.safeParse(req.body);

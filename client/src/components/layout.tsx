@@ -25,6 +25,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               Daily Log
             </span>
           </Link>
+          <Link href="/dashboard">
+            <span className={cn(
+              "hover:text-accent transition-colors relative cursor-pointer",
+              location === "/dashboard" && "text-accent font-bold after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-0.5 after:bg-accent/50 after:rounded-full"
+            )}>
+              Dashboard
+            </span>
+          </Link>
           <Link href="/goals">
             <span className={cn(
               "hover:text-accent transition-colors relative cursor-pointer",

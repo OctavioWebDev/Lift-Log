@@ -19,6 +19,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   
   getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]>;
+  getAllWorkoutSets(): Promise<WorkoutSet[]>;
   createWorkoutSet(workoutSet: InsertWorkoutSet): Promise<WorkoutSet>;
   deleteWorkoutSet(id: number): Promise<void>;
   
@@ -64,6 +65,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(workoutSets.date));
     
     return sets;
+  }
+
+  async getAllWorkoutSets(): Promise<WorkoutSet[]> {
+    return db.select().from(workoutSets).orderBy(desc(workoutSets.date));
   }
 
   async createWorkoutSet(insertWorkoutSet: InsertWorkoutSet): Promise<WorkoutSet> {
