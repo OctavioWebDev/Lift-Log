@@ -191,7 +191,7 @@ export default function Goals() {
                     <button
                       onClick={() => deleteMutation.mutate(goal.id)}
                       data-testid={`button-delete-goal-${goal.id}`}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 p-1.5 rounded-full"
+                      className="absolute top-2 right-2 text-destructive hover:bg-destructive/10 p-1.5 rounded-full transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -190,7 +190,7 @@ export default function Home() {
                         <button 
                           onClick={() => removeSet(set.id)}
                           data-testid={`button-delete-${set.id}`}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 p-2 rounded-full"
+                          className="text-destructive hover:bg-destructive/10 p-2 rounded-full transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
