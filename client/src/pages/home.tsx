@@ -35,6 +35,7 @@ export default function Home() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
     },
   });
 
@@ -47,6 +48,7 @@ export default function Home() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
     },
   });
 
@@ -68,6 +70,7 @@ export default function Home() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
     },
   });
 
@@ -83,6 +86,7 @@ export default function Home() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
       setEditingId(null);
       setEditForm(null);
     },
