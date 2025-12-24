@@ -3,6 +3,7 @@ import {
   type InsertUser,
   type WorkoutSet,
   type InsertWorkoutSet,
+  type UpdateWorkoutSet,
   type Goal,
   type InsertGoal,
   type UpdateGoal,
@@ -21,6 +22,7 @@ export interface IStorage {
   getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]>;
   getAllWorkoutSets(): Promise<WorkoutSet[]>;
   createWorkoutSet(workoutSet: InsertWorkoutSet): Promise<WorkoutSet>;
+  updateWorkoutSet(id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined>;
   deleteWorkoutSet(id: number): Promise<void>;
   
   getAllGoals(): Promise<Goal[]>;
@@ -77,6 +79,15 @@ export class DatabaseStorage implements IStorage {
       .values(insertWorkoutSet)
       .returning();
     return workoutSet;
+  }
+
+  async updateWorkoutSet(id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined> {
+    const [workoutSet] = await db
+      .update(workoutSets)
+      .set(updates)
+      .where(eq(workoutSets.id, id))
+      .returning();
+    return workoutSet || undefined;
   }
 
   async deleteWorkoutSet(id: number): Promise<void> {

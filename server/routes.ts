@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertWorkoutSetSchema, insertGoalSchema, updateGoalSchema } from "@shared/schema";
+import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 
 export async function registerRoutes(
@@ -44,6 +44,32 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error creating workout set:", error);
       res.status(500).json({ message: "Failed to create workout set" });
+    }
+  });
+
+  app.put("/api/workout-sets/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      
+      const result = updateWorkoutSetSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: fromError(result.error).toString() 
+        });
+      }
+      
+      const workoutSet = await storage.updateWorkoutSet(id, result.data);
+      if (!workoutSet) {
+        return res.status(404).json({ message: "Workout set not found" });
+      }
+      
+      res.json(workoutSet);
+    } catch (error) {
+      console.error("Error updating workout set:", error);
+      res.status(500).json({ message: "Failed to update workout set" });
     }
   });
 

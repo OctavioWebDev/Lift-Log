@@ -1,15 +1,18 @@
 import { useForm } from "react-hook-form";
-import { Trash2, Copy } from "lucide-react";
+import { Trash2, Copy, Check, X } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import type { WorkoutSet, InsertWorkoutSet } from "@shared/schema";
 
 export default function Home() {
   const queryClient = useQueryClient();
   const today = new Date().toISOString().split('T')[0];
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<{ exercise: string; sets: number; weight: number; reps: number } | null>(null);
 
   const { data: sets = [], isLoading } = useQuery<WorkoutSet[]>({
     queryKey: ['/api/workout-sets', today],
@@ -68,6 +71,23 @@ export default function Home() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: InsertWorkoutSet }) => {
+      const response = await fetch(`/api/workout-sets/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update workout set');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      setEditingId(null);
+      setEditForm(null);
+    },
+  });
+
   const { register, handleSubmit, reset } = useForm<InsertWorkoutSet>();
 
   const onSubmit = (data: InsertWorkoutSet) => {
@@ -81,6 +101,27 @@ export default function Home() {
 
   const duplicateSet = (set: WorkoutSet) => {
     duplicateMutation.mutate(set);
+  };
+
+  const startEdit = (set: WorkoutSet) => {
+    setEditingId(set.id);
+    setEditForm({
+      exercise: set.exercise,
+      sets: set.sets,
+      weight: set.weight,
+      reps: set.reps,
+    });
+  };
+
+  const saveEdit = (id: number) => {
+    if (editForm) {
+      updateMutation.mutate({ id, data: editForm });
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm(null);
   };
 
   return (
@@ -188,45 +229,111 @@ export default function Home() {
                       transition={{ delay: i * 0.05 }}
                       className="group flex items-center justify-between py-3 border-b border-primary/10 hover:bg-primary/5 px-2 transition-colors rounded-sm"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 flex-1">
                         <div className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center text-primary/50 font-mono text-xs">
                           {i + 1}
                         </div>
-                        <div>
+                        {editingId === set.id && editForm ? (
+                          <input
+                            type="text"
+                            value={editForm.exercise}
+                            onChange={(e) => setEditForm({ ...editForm, exercise: e.target.value })}
+                            className="font-mono font-bold text-lg bg-transparent border-b-2 border-primary focus-visible:ring-0 px-0 focus-visible:border-primary outline-none"
+                            data-testid={`input-edit-exercise-${set.id}`}
+                          />
+                        ) : (
                           <span className="font-bold font-mono text-lg text-primary" data-testid={`text-exercise-${set.id}`}>
                             {set.exercise}
                           </span>
-                        </div>
+                        )}
                       </div>
                       
-                      <div className="flex items-center gap-6 font-mono text-lg">
-                        <div className="w-14 text-right">
-                          <span className="font-bold" data-testid={`text-sets-${set.id}`}>{set.sets}</span> 
-                          <span className="text-sm text-muted-foreground">sets</span>
-                        </div>
-                        <div className="w-20 text-right">
-                          <span className="font-bold" data-testid={`text-weight-${set.id}`}>{set.weight}</span> 
-                          <span className="text-sm text-muted-foreground">lbs</span>
-                        </div>
-                        <div className="w-14 text-right">
-                          <span className="font-bold" data-testid={`text-reps-${set.id}`}>{set.reps}</span> 
-                          <span className="text-sm text-muted-foreground">reps</span>
-                        </div>
-                        <button 
-                          onClick={() => duplicateSet(set)}
-                          data-testid={`button-duplicate-${set.id}`}
-                          className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors"
-                          disabled={duplicateMutation.isPending}
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => removeSet(set.id)}
-                          data-testid={`button-delete-${set.id}`}
-                          className="text-destructive hover:bg-destructive/10 p-2 rounded-full transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="flex items-center gap-3 font-mono text-lg">
+                        {editingId === set.id && editForm ? (
+                          <>
+                            <input
+                              type="number"
+                              value={editForm.sets}
+                              onChange={(e) => setEditForm({ ...editForm, sets: parseInt(e.target.value) || 0 })}
+                              className="w-10 font-mono font-bold bg-transparent border-b-2 border-primary focus-visible:ring-0 px-1 focus-visible:border-primary outline-none text-right"
+                              data-testid={`input-edit-sets-${set.id}`}
+                            />
+                            <input
+                              type="number"
+                              value={editForm.weight}
+                              onChange={(e) => setEditForm({ ...editForm, weight: parseInt(e.target.value) || 0 })}
+                              className="w-14 font-mono font-bold bg-transparent border-b-2 border-primary focus-visible:ring-0 px-1 focus-visible:border-primary outline-none text-right"
+                              data-testid={`input-edit-weight-${set.id}`}
+                            />
+                            <input
+                              type="number"
+                              value={editForm.reps}
+                              onChange={(e) => setEditForm({ ...editForm, reps: parseInt(e.target.value) || 0 })}
+                              className="w-10 font-mono font-bold bg-transparent border-b-2 border-primary focus-visible:ring-0 px-1 focus-visible:border-primary outline-none text-right"
+                              data-testid={`input-edit-reps-${set.id}`}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-14 text-right">
+                              <span className="font-bold" data-testid={`text-sets-${set.id}`}>{set.sets}</span> 
+                              <span className="text-sm text-muted-foreground">sets</span>
+                            </div>
+                            <div className="w-20 text-right">
+                              <span className="font-bold" data-testid={`text-weight-${set.id}`}>{set.weight}</span> 
+                              <span className="text-sm text-muted-foreground">lbs</span>
+                            </div>
+                            <div className="w-14 text-right">
+                              <span className="font-bold" data-testid={`text-reps-${set.id}`}>{set.reps}</span> 
+                              <span className="text-sm text-muted-foreground">reps</span>
+                            </div>
+                          </>
+                        )}
+                        
+                        {editingId === set.id ? (
+                          <>
+                            <button 
+                              onClick={() => saveEdit(set.id)}
+                              data-testid={`button-save-${set.id}`}
+                              className="text-accent hover:bg-accent/10 p-2 rounded-full transition-colors"
+                              disabled={updateMutation.isPending}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={cancelEdit}
+                              data-testid={`button-cancel-${set.id}`}
+                              className="text-muted-foreground hover:bg-muted-foreground/10 p-2 rounded-full transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => startEdit(set)}
+                              data-testid={`button-edit-${set.id}`}
+                              className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors"
+                            >
+                              <span className="text-xs font-mono">Edit</span>
+                            </button>
+                            <button 
+                              onClick={() => duplicateSet(set)}
+                              data-testid={`button-duplicate-${set.id}`}
+                              className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors"
+                              disabled={duplicateMutation.isPending}
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => removeSet(set.id)}
+                              data-testid={`button-delete-${set.id}`}
+                              className="text-destructive hover:bg-destructive/10 p-2 rounded-full transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </motion.div>
                   ))

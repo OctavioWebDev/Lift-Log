@@ -32,7 +32,13 @@ export const insertWorkoutSetSchema = createInsertSchema(workoutSets).omit({
   date: true,
 });
 
+export const updateWorkoutSetSchema = createInsertSchema(workoutSets).omit({
+  id: true,
+  date: true,
+}).partial();
+
 export type InsertWorkoutSet = z.infer<typeof insertWorkoutSetSchema>;
+export type UpdateWorkoutSet = z.infer<typeof updateWorkoutSetSchema>;
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 
 export const goals = pgTable("goals", {
