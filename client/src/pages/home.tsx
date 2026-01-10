@@ -1,0 +1,352 @@
+import { useForm } from "react-hook-form";
+import { Trash2, Copy, Check, X } from "lucide-react";
+import Layout from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import type { WorkoutSet, InsertWorkoutSet } from "@shared/schema";
+
+export default function Home() {
+  const queryClient = useQueryClient();
+  const today = new Date().toISOString().split('T')[0];
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<{ exercise: string; sets: number; weight: number; reps: number } | null>(null);
+
+  const { data: sets = [], isLoading } = useQuery<WorkoutSet[]>({
+    queryKey: ['/api/workout-sets', today],
+    queryFn: async () => {
+      const response = await fetch(`/api/workout-sets?date=${today}`);
+      if (!response.ok) throw new Error('Failed to fetch workout sets');
+      return response.json();
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: InsertWorkoutSet) => {
+      const response = await fetch('/api/workout-sets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to create workout set');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/workout-sets/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete workout set');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (set: WorkoutSet) => {
+      const response = await fetch('/api/workout-sets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exercise: set.exercise,
+          sets: set.sets,
+          weight: set.weight,
+          reps: set.reps,
+          date: new Date().toISOString(),
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to duplicate workout set');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: InsertWorkoutSet }) => {
+      const response = await fetch(`/api/workout-sets/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update workout set');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-sets-all'] });
+      setEditingId(null);
+      setEditForm(null);
+    },
+  });
+
+  const { register, handleSubmit, reset } = useForm<InsertWorkoutSet>();
+
+  const onSubmit = (data: InsertWorkoutSet) => {
+    createMutation.mutate(data);
+    reset({ exercise: data.exercise, sets: data.sets, weight: data.weight, reps: data.reps });
+  };
+
+  const removeSet = (id: number) => {
+    deleteMutation.mutate(id);
+  };
+
+  const duplicateSet = (set: WorkoutSet) => {
+    duplicateMutation.mutate(set);
+  };
+
+  const startEdit = (set: WorkoutSet) => {
+    setEditingId(set.id);
+    setEditForm({
+      exercise: set.exercise,
+      sets: set.sets,
+      weight: set.weight,
+      reps: set.reps,
+    });
+  };
+
+  const saveEdit = (id: number) => {
+    if (editForm) {
+      updateMutation.mutate({ id, data: editForm });
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm(null);
+  };
+
+  return (
+    <Layout>
+      <div className="space-y-8">
+        <section className="bg-card border-2 border-border p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] rotate-[0.5deg]">
+          <h2 className="font-hand text-2xl mb-4 text-primary flex items-center gap-2">
+            <span className="text-accent">*</span> New Entry
+          </h2>
+          
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-12 gap-4 items-end">
+              <div className="col-span-2 md:col-span-4">
+                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Exercise</label>
+                <Input 
+                  type="text" 
+                  data-testid="input-exercise"
+                  {...register("exercise", { required: true })}
+                  className="font-mono bg-transparent border-0 border-b-2 border-muted-foreground/20 rounded-none focus-visible:ring-0 px-0 focus-visible:border-primary"
+                  placeholder="e.g. Squat, Bench Press..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Sets</label>
+                <Input 
+                  type="number" 
+                  data-testid="input-sets"
+                  {...register("sets", { required: true, valueAsNumber: true })}
+                  className="font-mono bg-transparent border-0 border-b-2 border-muted-foreground/20 rounded-none focus-visible:ring-0 px-0 focus-visible:border-primary"
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Weight (lbs)</label>
+                <Input 
+                  type="number" 
+                  data-testid="input-weight"
+                  {...register("weight", { required: true, valueAsNumber: true })}
+                  className="font-mono bg-transparent border-0 border-b-2 border-muted-foreground/20 rounded-none focus-visible:ring-0 px-0 focus-visible:border-primary"
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">Reps</label>
+                <Input 
+                  type="number" 
+                  data-testid="input-reps"
+                  {...register("reps", { required: true, valueAsNumber: true })}
+                  className="font-mono bg-transparent border-0 border-b-2 border-muted-foreground/20 rounded-none focus-visible:ring-0 px-0 focus-visible:border-primary"
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Button 
+                  type="submit" 
+                  data-testid="button-log-set"
+                  className="w-full font-hand text-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? 'Logging...' : 'Log It'}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-hand text-3xl text-primary relative inline-block">
+              Today's Work
+              <span className="absolute -bottom-1 left-0 w-full h-1 bg-yellow-200/60 -rotate-1"></span>
+            </h2>
+            <div className="font-mono text-sm text-muted-foreground" data-testid="text-total-volume">
+              Total Volume: {sets.reduce((acc, s) => acc + (s.sets * s.weight * s.reps), 0).toLocaleString()} lbs
+            </div>
+          </div>
+
+          <div className="space-y-0">
+            {isLoading ? (
+              <div className="p-8 text-center font-hand text-2xl text-muted-foreground/50">
+                Loading...
+              </div>
+            ) : (
+              <AnimatePresence>
+                {sets.length === 0 ? (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="p-8 text-center font-hand text-2xl text-muted-foreground/50 border-2 border-dashed border-muted-foreground/20 rounded-lg"
+                  >
+                    Page is empty. Go lift something heavy.
+                  </motion.div>
+                ) : (
+                  sets.map((set, i) => (
+                    <motion.div
+                      key={set.id}
+                      data-testid={`row-workout-set-${set.id}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="group flex items-center justify-between py-3 border-b border-primary/10 hover:bg-primary/5 px-2 transition-colors rounded-sm"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center text-primary/50 font-mono text-xs">
+                          {i + 1}
+                        </div>
+                        {editingId === set.id && editForm ? (
+                          <input
+                            type="text"
+                            value={editForm.exercise}
+                            onChange={(e) => setEditForm({ ...editForm, exercise: e.target.value })}
+                            className="font-mono font-bold text-lg bg-transparent border-b-2 border-primary focus-visible:ring-0 px-0 focus-visible:border-primary outline-none"
+                            data-testid={`input-edit-exercise-${set.id}`}
+                          />
+                        ) : (
+                          <span className="font-bold font-mono text-lg text-primary" data-testid={`text-exercise-${set.id}`}>
+                            {set.exercise}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-3 font-mono text-lg">
+                        {editingId === set.id && editForm ? (
+                          <>
+                            <input
+                              type="number"
+                              value={editForm.sets}
+                              onChange={(e) => setEditForm({ ...editForm, sets: parseInt(e.target.value) || 0 })}
+                              className="w-10 font-mono font-bold bg-transparent border-b-2 border-primary focus-visible:ring-0 px-1 focus-visible:border-primary outline-none text-right"
+                              data-testid={`input-edit-sets-${set.id}`}
+                            />
+                            <input
+                              type="number"
+                              value={editForm.weight}
+                              onChange={(e) => setEditForm({ ...editForm, weight: parseInt(e.target.value) || 0 })}
+                              className="w-14 font-mono font-bold bg-transparent border-b-2 border-primary focus-visible:ring-0 px-1 focus-visible:border-primary outline-none text-right"
+                              data-testid={`input-edit-weight-${set.id}`}
+                            />
+                            <input
+                              type="number"
+                              value={editForm.reps}
+                              onChange={(e) => setEditForm({ ...editForm, reps: parseInt(e.target.value) || 0 })}
+                              className="w-10 font-mono font-bold bg-transparent border-b-2 border-primary focus-visible:ring-0 px-1 focus-visible:border-primary outline-none text-right"
+                              data-testid={`input-edit-reps-${set.id}`}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-14 text-right">
+                              <span className="font-bold" data-testid={`text-sets-${set.id}`}>{set.sets}</span> 
+                              <span className="text-sm text-muted-foreground">sets</span>
+                            </div>
+                            <div className="w-20 text-right">
+                              <span className="font-bold" data-testid={`text-weight-${set.id}`}>{set.weight}</span> 
+                              <span className="text-sm text-muted-foreground">lbs</span>
+                            </div>
+                            <div className="w-14 text-right">
+                              <span className="font-bold" data-testid={`text-reps-${set.id}`}>{set.reps}</span> 
+                              <span className="text-sm text-muted-foreground">reps</span>
+                            </div>
+                          </>
+                        )}
+                        
+                        {editingId === set.id ? (
+                          <>
+                            <button 
+                              onClick={() => saveEdit(set.id)}
+                              data-testid={`button-save-${set.id}`}
+                              className="text-accent hover:bg-accent/10 p-2 rounded-full transition-colors"
+                              disabled={updateMutation.isPending}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={cancelEdit}
+                              data-testid={`button-cancel-${set.id}`}
+                              className="text-muted-foreground hover:bg-muted-foreground/10 p-2 rounded-full transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => startEdit(set)}
+                              data-testid={`button-edit-${set.id}`}
+                              className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors"
+                            >
+                              <span className="text-xs font-mono">Edit</span>
+                            </button>
+                            <button 
+                              onClick={() => duplicateSet(set)}
+                              data-testid={`button-duplicate-${set.id}`}
+                              className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors"
+                              disabled={duplicateMutation.isPending}
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => removeSet(set.id)}
+                              data-testid={`button-delete-${set.id}`}
+                              className="text-destructive hover:bg-destructive/10 p-2 rounded-full transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
+            )}
+          </div>
+        </section>
+      </div>
+    </Layout>
+  );
+}
