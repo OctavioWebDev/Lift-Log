@@ -10,9 +10,9 @@ import {
   users,
   workoutSets,
   goals
-} from "@shared/schema";
+} from "../shared/schema";
 import { db } from "./db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -52,19 +52,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    // Parse the date string as UTC to avoid timezone issues
+    // date format: "YYYY-MM-DD"
+    const [year, month, day] = date.split('-').map(Number);
     
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const startTimestamp = startOfDay.getTime();
     
-    const sets = await db
+    const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+    const endTimestamp = endOfDay.getTime();
+    
+    // Get all sets and filter in JavaScript since Drizzle returns Date objects
+    const allSets = await db
       .select()
       .from(workoutSets)
-      .where(
-        sql`${workoutSets.date} >= ${startOfDay} AND ${workoutSets.date} <= ${endOfDay}`
-      )
       .orderBy(desc(workoutSets.date));
+    
+    // Filter by date range in JavaScript
+    const sets = allSets.filter(set => {
+      const setTimestamp = set.date instanceof Date ? set.date.getTime() : set.date;
+      return setTimestamp >= startTimestamp && setTimestamp <= endTimestamp;
+    });
     
     return sets;
   }

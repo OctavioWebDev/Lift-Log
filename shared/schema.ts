@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, real } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
 });
@@ -17,14 +17,14 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-export const workoutSets = pgTable("workout_sets", {
-  id: serial("id").primaryKey(),
+export const workoutSets = sqliteTable("workout_sets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   exercise: text("exercise").notNull(),
   sets: integer("sets").notNull().default(1),
   weight: integer("weight").notNull(),
   reps: integer("reps").notNull(),
   rpe: real("rpe"),
-  date: timestamp("date").notNull().defaultNow(),
+  date: integer("date", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const insertWorkoutSetSchema = createInsertSchema(workoutSets).omit({
@@ -41,8 +41,8 @@ export type InsertWorkoutSet = z.infer<typeof insertWorkoutSetSchema>;
 export type UpdateWorkoutSet = z.infer<typeof updateWorkoutSetSchema>;
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 
-export const goals = pgTable("goals", {
-  id: serial("id").primaryKey(),
+export const goals = sqliteTable("goals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   exercise: text("exercise").notNull().unique(),
   current: integer("current").notNull(),
   target: integer("target").notNull(),
