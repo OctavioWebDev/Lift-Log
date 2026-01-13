@@ -1,0 +1,207 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "../server/storage";
+import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema } from "../shared/schema";
+import { fromError } from "zod-validation-error";
+
+export async function registerRoutes(
+  httpServer: Server,
+  app: Express
+): Promise<Server> {
+  
+  // ==================== PAGE ROUTES ====================
+  
+  // Home page - Workout Log
+  app.get("/", async (req, res) => {
+    try {
+      const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+      const workouts = await storage.getWorkoutSetsForDate(date);
+      
+      res.render("index", {
+        title: "Workout Log",
+        date,
+        workouts,
+        body: ""
+      });
+    } catch (error) {
+      console.error("Error loading home page:", error);
+      res.status(500).send("Error loading page");
+    }
+  });
+  
+  // Goals page
+  app.get("/goals", async (req, res) => {
+    try {
+      const goals = await storage.getAllGoals();
+      
+      res.render("goals", {
+        title: "Training Goals",
+        goals,
+        body: ""
+      });
+    } catch (error) {
+      console.error("Error loading goals page:", error);
+      res.status(500).send("Error loading page");
+    }
+  });
+  
+  // ==================== API ROUTES ====================
+  
+  app.get("/api/workout-sets", async (req, res) => {
+    try {
+      const date = req.query.date as string || new Date().toISOString().split('T')[0];
+      const sets = await storage.getWorkoutSetsForDate(date);
+      res.json(sets);
+    } catch (error) {
+      console.error("Error fetching workout sets:", error);
+      res.status(500).json({ message: "Failed to fetch workout sets" });
+    }
+  });
+
+  app.get("/api/workout-sets-all", async (req, res) => {
+    try {
+      const sets = await storage.getAllWorkoutSets();
+      res.json(sets);
+    } catch (error) {
+      console.error("Error fetching all workout sets:", error);
+      res.status(500).json({ message: "Failed to fetch workout sets" });
+    }
+  });
+
+  app.post("/api/workout-sets", async (req, res) => {
+    try {
+      const result = insertWorkoutSetSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).send(`<div class="text-red-600">${fromError(result.error).toString()}</div>`);
+      }
+      
+      const workoutSet = await storage.createWorkoutSet(result.data);
+      
+      // Return HTML partial for HTMX
+      const html = await new Promise<string>((resolve, reject) => {
+        res.app.render("partials/workout-item", { workout: workoutSet }, (err, html) => {
+          if (err) reject(err);
+          else resolve(html);
+        });
+      });
+      
+      res.status(201).send(html);
+    } catch (error) {
+      console.error("Error creating workout set:", error);
+      res.status(500).send(`<div class="text-red-600">Failed to create workout set</div>`);
+    }
+  });
+
+  app.put("/api/workout-sets/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      
+      const result = updateWorkoutSetSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: fromError(result.error).toString() 
+        });
+      }
+      
+      const workoutSet = await storage.updateWorkoutSet(id, result.data);
+      if (!workoutSet) {
+        return res.status(404).json({ message: "Workout set not found" });
+      }
+      
+      res.json(workoutSet);
+    } catch (error) {
+      console.error("Error updating workout set:", error);
+      res.status(500).json({ message: "Failed to update workout set" });
+    }
+  });
+
+  app.delete("/api/workout-sets/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      
+      await storage.deleteWorkoutSet(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting workout set:", error);
+      res.status(500).json({ message: "Failed to delete workout set" });
+    }
+  });
+
+  app.get("/api/goals", async (req, res) => {
+    try {
+      const goals = await storage.getAllGoals();
+      res.json(goals);
+    } catch (error) {
+      console.error("Error fetching goals:", error);
+      res.status(500).json({ message: "Failed to fetch goals" });
+    }
+  });
+
+  app.post("/api/goals", async (req, res) => {
+    try {
+      const result = insertGoalSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).send(`<div class="text-red-600">${fromError(result.error).toString()}</div>`);
+      }
+      
+      const goal = await storage.createGoal(result.data);
+      
+      // Return HTML partial for HTMX
+      const html = await new Promise<string>((resolve, reject) => {
+        res.app.render("partials/goal-item", { goal }, (err, html) => {
+          if (err) reject(err);
+          else resolve(html);
+        });
+      });
+      
+      res.status(201).send(html);
+    } catch (error) {
+      console.error("Error creating goal:", error);
+      res.status(500).send(`<div class="text-red-600">Failed to create goal</div>`);
+    }
+  });
+
+  app.patch("/api/goals/:exercise", async (req, res) => {
+    try {
+      const result = updateGoalSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: fromError(result.error).toString() 
+        });
+      }
+      
+      const goal = await storage.updateGoal(decodeURIComponent(req.params.exercise), result.data);
+      if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      
+      res.json(goal);
+    } catch (error) {
+      console.error("Error updating goal:", error);
+      res.status(500).json({ message: "Failed to update goal" });
+    }
+  });
+
+  app.delete("/api/goals/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      
+      await storage.deleteGoal(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      res.status(500).json({ message: "Failed to delete goal" });
+    }
+  });
+
+  return httpServer;
+}

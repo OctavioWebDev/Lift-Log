@@ -1,0 +1,69 @@
+<div class="space-y-6">
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Training Goals</h2>
+    
+    <!-- Add Goal Form -->
+    <form 
+      hx-post="/api/goals"
+      hx-target="#goals-list"
+      hx-swap="beforeend"
+      hx-on::after-request="this.reset()"
+      class="mb-8 space-y-4"
+    >
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Exercise</label>
+          <input 
+            type="text" 
+            name="exercise" 
+            required
+            placeholder="Squat"
+            class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+          >
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Current (lbs)</label>
+          <input 
+            type="number" 
+            name="current" 
+            required
+            placeholder="225"
+            class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+          >
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Target (lbs)</label>
+          <input 
+            type="number" 
+            name="target" 
+            required
+            placeholder="315"
+            class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+          >
+        </div>
+        
+        <div class="flex items-end">
+          <button 
+            type="submit"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition"
+          >
+            Add Goal
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Goals List -->
+    <div id="goals-list" class="space-y-4">
+      <% if (goals.length === 0) { %>
+        <p class="text-gray-500 text-center py-8">No goals set yet. Add your first goal above!</p>
+      <% } else { %>
+        <% goals.forEach(function(goal) { %>
+          <%- include('partials/goal-item', { goal: goal }) %>
+        <% }); %>
+      <% } %>
+    </div>
+  </div>
+</div>
