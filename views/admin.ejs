@@ -1,0 +1,365 @@
+<%- include('partials/header') %>
+
+<div class="space-y-4 sm:space-y-6">
+  <!-- Admin Header -->
+  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-1">Admin Panel</h1>
+        <p class="text-sm sm:text-base text-brand-600">Manage users, workouts, and system</p>
+      </div>
+      <svg class="w-8 h-8 sm:w-10 sm:h-10 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- Stats Overview -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <!-- Total Users -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+      <p class="text-xs sm:text-sm font-medium text-brand-600 uppercase tracking-wide mb-1">Total Users</p>
+      <p class="text-2xl sm:text-3xl font-bold text-brand-900"><%= stats.totalUsers %></p>
+    </div>
+
+    <!-- Total Workouts -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+      <p class="text-xs sm:text-sm font-medium text-brand-600 uppercase tracking-wide mb-1">Total Workouts</p>
+      <p class="text-2xl sm:text-3xl font-bold text-brand-900"><%= stats.totalWorkouts %></p>
+    </div>
+
+    <!-- Total Goals -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+      <p class="text-xs sm:text-sm font-medium text-brand-600 uppercase tracking-wide mb-1">Total Goals</p>
+      <p class="text-2xl sm:text-3xl font-bold text-brand-900"><%= stats.totalGoals %></p>
+    </div>
+
+    <!-- Active Today -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+      <p class="text-xs sm:text-sm font-medium text-brand-600 uppercase tracking-wide mb-1">Active Today</p>
+      <p class="text-2xl sm:text-3xl font-bold text-brand-900"><%= stats.activeToday %></p>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="bg-white rounded-lg border border-gray-200">
+    <div class="border-b border-gray-200">
+      <nav class="flex overflow-x-auto">
+        <button 
+          onclick="showTab('users')" 
+          id="tab-users"
+          class="tab-button flex-1 px-4 py-3 text-sm font-medium text-brand-700 hover:text-brand-900 border-b-2 border-brand-900"
+        >
+          Users
+        </button>
+        <button 
+          onclick="showTab('workouts')" 
+          id="tab-workouts"
+          class="tab-button flex-1 px-4 py-3 text-sm font-medium text-brand-600 hover:text-brand-900 border-b-2 border-transparent"
+        >
+          Workouts
+        </button>
+        <button 
+          onclick="showTab('goals')" 
+          id="tab-goals"
+          class="tab-button flex-1 px-4 py-3 text-sm font-medium text-brand-600 hover:text-brand-900 border-b-2 border-transparent"
+        >
+          Goals
+        </button>
+        <button 
+          onclick="showTab('settings')" 
+          id="tab-settings"
+          class="tab-button flex-1 px-4 py-3 text-sm font-medium text-brand-600 hover:text-brand-900 border-b-2 border-transparent"
+        >
+          Settings
+        </button>
+      </nav>
+    </div>
+
+    <!-- Users Tab -->
+    <div id="content-users" class="tab-content">
+      <div class="p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg sm:text-xl font-bold text-brand-900">All Users</h2>
+          <span class="text-xs sm:text-sm text-brand-600 bg-brand-100 px-2 py-1 rounded"><%= users.length %> users</span>
+        </div>
+
+        <div class="space-y-3">
+          <% if (users.length === 0) { %>
+            <p class="text-center text-brand-600 py-8">No users yet.</p>
+          <% } else { %>
+            <% users.forEach(function(user) { %>
+              <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition" id="user-<%= user.id %>">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <h3 class="font-bold text-brand-900 truncate"><%= user.username %></h3>
+                      <% if (user.isAdmin) { %>
+                        <span class="text-xs bg-brand-900 text-white px-2 py-0.5 rounded">Admin</span>
+                      <% } %>
+                    </div>
+                    <% if (user.email) { %>
+                      <p class="text-sm text-brand-600 truncate"><%= user.email %></p>
+                    <% } %>
+                    <p class="text-xs text-brand-500 mt-1">
+                      Joined <%= new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                    </p>
+                  </div>
+                  
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <% if (!user.isAdmin) { %>
+                      <button
+                        onclick="deleteUser('<%= user.id %>', '<%= user.username %>')"
+                        class="text-red-600 hover:text-red-800 transition p-1.5"
+                        title="Delete user"
+                      >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workouts Tab -->
+    <div id="content-workouts" class="tab-content hidden">
+      <div class="p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg sm:text-xl font-bold text-brand-900">Recent Workouts</h2>
+          <span class="text-xs sm:text-sm text-brand-600 bg-brand-100 px-2 py-1 rounded"><%= recentWorkouts.length %> workouts</span>
+        </div>
+
+        <div class="space-y-3">
+          <% if (recentWorkouts.length === 0) { %>
+            <p class="text-center text-brand-600 py-8">No workouts logged yet.</p>
+          <% } else { %>
+            <% recentWorkouts.forEach(function(workout) { %>
+              <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition" id="admin-workout-<%= workout.id %>">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-brand-900 truncate"><%= workout.exercise %></h3>
+                    <p class="text-sm text-brand-600">
+                      <%= workout.sets %> × <%= workout.weight %> lbs × <%= workout.reps %> reps
+                      <% if (workout.rpe) { %>
+                        <span class="text-brand-500">• RPE <%= workout.rpe %></span>
+                      <% } %>
+                    </p>
+                    <p class="text-xs text-brand-500 mt-1">
+                      <%= new Date(workout.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                    </p>
+                  </div>
+                  
+                  <button
+                    onclick="deleteWorkout(<%= workout.id %>)"
+                    class="text-red-600 hover:text-red-800 transition p-1.5 flex-shrink-0"
+                    title="Delete workout"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Goals Tab -->
+    <div id="content-goals" class="tab-content hidden">
+      <div class="p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg sm:text-xl font-bold text-brand-900">All Goals</h2>
+          <span class="text-xs sm:text-sm text-brand-600 bg-brand-100 px-2 py-1 rounded"><%= allGoals.length %> goals</span>
+        </div>
+
+        <div class="space-y-3">
+          <% if (allGoals.length === 0) { %>
+            <p class="text-center text-brand-600 py-8">No goals set yet.</p>
+          <% } else { %>
+            <% allGoals.forEach(function(goal) { %>
+              <% const progress = Math.min((goal.current / goal.target) * 100, 100); %>
+              <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition" id="admin-goal-<%= goal.id %>">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div class="flex-1">
+                    <h3 class="font-bold text-brand-900"><%= goal.exercise %></h3>
+                    <p class="text-sm text-brand-600"><%= progress.toFixed(0) %>% Complete</p>
+                  </div>
+                  
+                  <button
+                    onclick="deleteGoal(<%= goal.id %>)"
+                    class="text-red-600 hover:text-red-800 transition p-1.5 flex-shrink-0"
+                    title="Delete goal"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div class="bg-brand-900 h-2 rounded-full transition-all" style="width: <%= progress %>%"></div>
+                </div>
+                
+                <div class="flex justify-between text-sm text-brand-600">
+                  <span><%= goal.current %> <%= goal.unit %></span>
+                  <span><%= goal.target %> <%= goal.unit %></span>
+                </div>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="content-settings" class="tab-content hidden">
+      <div class="p-4 sm:p-6 space-y-4">
+        <h2 class="text-lg sm:text-xl font-bold text-brand-900 mb-4">System Settings</h2>
+
+        <!-- Database Stats -->
+        <div class="border border-gray-200 rounded-lg p-4">
+          <h3 class="font-bold text-brand-900 mb-3">Database Statistics</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-brand-600">Total Users:</span>
+              <span class="font-medium text-brand-900"><%= stats.totalUsers %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-brand-600">Total Workouts:</span>
+              <span class="font-medium text-brand-900"><%= stats.totalWorkouts %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-brand-600">Total Goals:</span>
+              <span class="font-medium text-brand-900"><%= stats.totalGoals %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-brand-600">Database Size:</span>
+              <span class="font-medium text-brand-900">~<%= ((stats.totalUsers * 0.5) + (stats.totalWorkouts * 0.1) + (stats.totalGoals * 0.05)).toFixed(1) %> KB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+          <h3 class="font-bold text-red-900 mb-2">Danger Zone</h3>
+          <p class="text-sm text-red-700 mb-3">These actions cannot be undone. Use with caution.</p>
+          
+          <div class="space-y-2">
+            <button
+              onclick="if(confirm('Are you sure? This will delete ALL workouts!')) alert('Feature not implemented - add endpoint to enable')"
+              class="w-full px-4 py-2 bg-white border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition text-sm font-medium"
+            >
+              Clear All Workouts
+            </button>
+            
+            <button
+              onclick="if(confirm('Are you sure? This will delete ALL goals!')) alert('Feature not implemented - add endpoint to enable')"
+              class="w-full px-4 py-2 bg-white border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition text-sm font-medium"
+            >
+              Clear All Goals
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Tab switching
+function showTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.add('hidden');
+  });
+  
+  // Reset all tab buttons
+  document.querySelectorAll('.tab-button').forEach(button => {
+    button.classList.remove('border-brand-900', 'text-brand-900');
+    button.classList.add('border-transparent', 'text-brand-600');
+  });
+  
+  // Show selected tab
+  document.getElementById(`content-${tabName}`).classList.remove('hidden');
+  
+  // Highlight selected button
+  const button = document.getElementById(`tab-${tabName}`);
+  button.classList.add('border-brand-900', 'text-brand-900');
+  button.classList.remove('border-transparent', 'text-brand-600');
+}
+
+// Delete user
+async function deleteUser(userId, username) {
+  if (!confirm(`Delete user "${username}"? This will also delete all their workouts and goals.`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+    
+    if (response.ok) {
+      document.getElementById(`user-${userId}`).remove();
+      location.reload();
+    } else {
+      alert('Failed to delete user');
+    }
+  } catch (error) {
+    alert('Error deleting user');
+  }
+}
+
+// Delete workout
+async function deleteWorkout(workoutId) {
+  if (!confirm('Delete this workout?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/api/workout-sets/${workoutId}`, {
+      method: 'DELETE',
+    });
+    
+    if (response.ok) {
+      document.getElementById(`admin-workout-${workoutId}`).remove();
+    } else {
+      alert('Failed to delete workout');
+    }
+  } catch (error) {
+    alert('Error deleting workout');
+  }
+}
+
+// Delete goal
+async function deleteGoal(goalId) {
+  if (!confirm('Delete this goal?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/api/goals/${goalId}`, {
+      method: 'DELETE',
+    });
+    
+    if (response.ok) {
+      document.getElementById(`admin-goal-${goalId}`).remove();
+    } else {
+      alert('Failed to delete goal');
+    }
+  } catch (error) {
+    alert('Error deleting goal');
+  }
+}
+</script>
+
+<%- include('partials/footer') %>

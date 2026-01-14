@@ -17,7 +17,9 @@ import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  deleteUser(id: string): Promise<void>;  // ← Add this
   
   getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]>;
   getAllWorkoutSets(): Promise<WorkoutSet[]>;
@@ -43,12 +45,21 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  // ← Add this method
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
   }
 
   async getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]> {

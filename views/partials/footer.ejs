@@ -1,0 +1,33 @@
+</main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-gray-200 mt-12 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="text-center sm:text-left">
+          <a href="<%= (typeof user !== 'undefined' && user) ? '/app' : '/' %>" class="font-bold text-brand-900 text-lg hover:text-brand-700 transition">
+            Lift-Log
+          </a>
+          <p class="text-brand-600 text-sm mt-1">Track your progress. Build real strength.</p>
+        </div>
+        
+        <div class="text-center sm:text-right">
+          <p class="text-sm text-brand-600">© 2026 Lift-Log. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- HTMX Config -->
+  <script>
+    // Show loading indicator on HTMX requests
+    document.body.addEventListener('htmx:beforeRequest', function(evt) {
+      document.body.classList.add('cursor-wait');
+    });
+    
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+      document.body.classList.remove('cursor-wait');
+    });
+  </script>
+</body>
+</html>

@@ -2,7 +2,6 @@ import { db } from "./server/db";
 import { workoutSets, goals } from "./shared/schema";
 
 async function seed() {
-  console.log("Seeding database...");
   
   try {
     // Add sample workout sets
@@ -32,7 +31,6 @@ async function seed() {
 
     for (const workout of sampleWorkouts) {
       await db.insert(workoutSets).values(workout);
-      console.log(`✓ Added ${workout.exercise}`);
     }
 
     // Add sample goals
@@ -59,10 +57,7 @@ async function seed() {
 
     for (const goal of sampleGoals) {
       await db.insert(goals).values(goal);
-      console.log(`✓ Added goal for ${goal.exercise}`);
     }
-
-    console.log("\n✅ Seeding completed successfully!");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
     process.exit(1);

@@ -3,20 +3,32 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// ============================================================================
+// USERS TABLE
+// ============================================================================
 export const users = sqliteTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email"),
+  passwordHash: text("password_hash").notNull(),
+  isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),  // ← Add this
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
-  password: true,
+  email: true,
+  passwordHash: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// ============================================================================
+// WORKOUT SETS TABLE
+// ============================================================================
 export const workoutSets = sqliteTable("workout_sets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   exercise: text("exercise").notNull(),
@@ -41,6 +53,9 @@ export type InsertWorkoutSet = z.infer<typeof insertWorkoutSetSchema>;
 export type UpdateWorkoutSet = z.infer<typeof updateWorkoutSetSchema>;
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 
+// ============================================================================
+// GOALS TABLE
+// ============================================================================
 export const goals = sqliteTable("goals", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   exercise: text("exercise").notNull().unique(),

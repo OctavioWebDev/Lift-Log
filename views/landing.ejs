@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lift Log - Track Your Progress, Build Real Strength</title>
+  <meta name="description" content="Track your workouts, set goals, and build real strength. Simple, no-nonsense strength training tracker.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'brand': {
+              50: '#f8f9fa',
+              100: '#f1f3f5',
+              200: '#e9ecef',
+              300: '#dee2e6',
+              400: '#ced4da',
+              500: '#adb5bd',
+              600: '#868e96',
+              700: '#495057',
+              800: '#343a40',
+              900: '#212529',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- Navigation -->
+  <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="text-xl font-bold text-brand-900">Lift Log</div>
+        <div class="flex items-center gap-4">
+          <a href="/login" class="text-brand-700 hover:text-brand-900 font-medium transition text-sm sm:text-base">
+            Sign In
+          </a>
+          <a href="/signup" class="bg-brand-900 hover:bg-brand-800 text-white px-4 py-2 rounded-lg font-medium transition text-sm sm:text-base">
+            Get Started
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
+      <div class="text-center">
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-900 mb-6">
+          Track Your Progress.<br>Build Real Strength.
+        </h1>
+        <p class="text-lg sm:text-xl text-brand-600 mb-8 max-w-3xl mx-auto">
+          Simple, no-nonsense strength training tracker. Log workouts, set goals, and watch yourself get stronger every day.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="/signup" class="bg-brand-900 hover:bg-brand-800 text-white px-8 py-4 rounded-lg font-semibold text-lg transition">
+            Start Free Today
+          </a>
+          <a href="#features" class="bg-white border-2 border-brand-300 hover:border-brand-400 text-brand-900 px-8 py-4 rounded-lg font-semibold text-lg transition">
+            Learn More
+          </a>
+        </div>
+        <p class="text-sm text-brand-500 mt-4">No credit card required. Free forever.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="py-16 sm:py-24 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-4">Everything You Need to Get Strong</h2>
+        <p class="text-lg text-brand-600">No complexity. No BS. Just what works.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-8 hover:border-brand-300 transition">
+          <div class="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-brand-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Log Workouts Fast</h3>
+          <p class="text-brand-600">Track sets, reps, weight, and RPE in seconds. No complicated forms or unnecessary fields.</p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-8 hover:border-brand-300 transition">
+          <div class="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-brand-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Track Progress</h3>
+          <p class="text-brand-600">See your total volume, workout frequency, and strength gains at a glance.</p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-8 hover:border-brand-300 transition">
+          <div class="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-brand-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Set Goals</h3>
+          <p class="text-brand-600">Track your progress toward strength goals. Watch the progress bar move as you get stronger.</p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-8 hover:border-brand-300 transition">
+          <div class="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-brand-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">View History</h3>
+          <p class="text-brand-600">Navigate through past workouts by date. See what you did yesterday, last week, or last month.</p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-8 hover:border-brand-300 transition">
+          <div class="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-brand-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Mobile-First</h3>
+          <p class="text-brand-600">Built for the gym. Works perfectly on your phone. Log sets between exercises without hassle.</p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-8 hover:border-brand-300 transition">
+          <div class="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-brand-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Your Data, Private</h3>
+          <p class="text-brand-600">Secure authentication. Your workouts belong to you. No ads, no tracking, no BS.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="py-16 sm:py-24 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-4">Simple. Effective. No BS.</h2>
+        <p class="text-lg text-brand-600">Getting started takes less than 60 seconds</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-brand-900 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+            1
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Sign Up Free</h3>
+          <p class="text-brand-600">Create your account in 30 seconds. No credit card needed.</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-brand-900 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+            2
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Log Your First Workout</h3>
+          <p class="text-brand-600">Enter exercise, sets, weight, reps. Done. That simple.</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-brand-900 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+            3
+          </div>
+          <h3 class="text-xl font-bold text-brand-900 mb-2">Watch Yourself Get Stronger</h3>
+          <p class="text-brand-600">Track progress, set goals, and hit PRs. That's it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Philosophy Section -->
+  <section class="py-16 sm:py-24 bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-6">Built by a Lifter, for Lifters</h2>
+      <p class="text-lg text-brand-600 mb-6">
+        The fitness industry profits from keeping you confused. Complicated programs, unnecessary features, dependency-creating complexity.
+      </p>
+      <p class="text-lg text-brand-600 mb-6">
+       Lift Log cuts through the noise. Track workouts. Set goals. Get stronger. That's what matters.
+      </p>
+      <p class="text-lg font-semibold text-brand-900">
+        No supplement pitches. No BS. Just strength.
+      </p>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="py-16 sm:py-24 bg-brand-900">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-6">Ready to Get Stronger?</h2>
+      <p class="text-lg text-gray-300 mb-8">
+        Join lifters who track their progress without the complexity.
+      </p>
+      <a href="/signup" class="inline-block bg-white hover:bg-gray-100 text-brand-900 px-8 py-4 rounded-lg font-semibold text-lg transition">
+        Start Free Today
+      </a>
+      <p class="text-sm text-gray-400 mt-4">Free forever. No credit card required.</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-gray-200 py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div>
+          <div class="font-bold text-brand-900 text-lg mb-4">Lift Log</div>
+          <p class="text-brand-600 text-sm">Track your progress. Build real strength.</p>
+        </div>
+        
+        <div>
+          <h3 class="font-bold text-brand-900 mb-4">Product</h3>
+          <ul class="space-y-2 text-sm">
+            <li><a href="#features" class="text-brand-600 hover:text-brand-900">Features</a></li>
+            <li><a href="/signup" class="text-brand-600 hover:text-brand-900">Sign Up</a></li>
+            <li><a href="/login" class="text-brand-600 hover:text-brand-900">Sign In</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3 class="font-bold text-brand-900 mb-4">Contact</h3>
+          <ul class="space-y-2 text-sm">
+            <li class="text-brand-600">Toledo, Ohio</li>
+            <li><a href="mailto:chirhostrength@gmail.com" class="text-brand-600 hover:text-brand-900">chirhostrength@gmail.com</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="border-t border-gray-200 mt-12 pt-8 text-center text-sm text-brand-600">
+        <p>© 2026 Lift Log. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
