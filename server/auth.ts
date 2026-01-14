@@ -2,6 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 
+// Extend Express Session type to include userId
+declare module "express-session" {
+  interface SessionData {
+    userId: string;
+  }
+}
+
 // Extend Express Request type to include user
 declare global {
   namespace Express {
@@ -10,11 +17,13 @@ declare global {
         id: string;
         username: string;
         email: string | null;
-        isAdmin: boolean;  // ← Add this
+        isAdmin: boolean;
       };
     }
   }
 }
+
+// Rest of your auth.ts code...
 
 // Middleware to check if user is authenticated
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
