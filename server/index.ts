@@ -1,9 +1,13 @@
+console.log("========== SERVER STARTING ==========");
+
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";  // ← Add this import
 import { registerRoutes } from "./routes";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+
+console.log("✓ Imports loaded");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +18,8 @@ const httpServer = createServer(app);
 // Configure EJS
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "../views"));
+
+console.log("✓ EJS configured");
 
 declare module "http" {
   interface IncomingMessage {
@@ -80,8 +86,14 @@ app.use((req, res, next) => {
   next();
 });
 
+console.log("✓ Middleware configured");
+
 (async () => {
+  console.log("✓ Starting async initialization...");
+
   await registerRoutes(httpServer, app);
+
+  console.log("✓ Routes registered");
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -92,13 +104,18 @@ app.use((req, res, next) => {
   });
 
   const port = parseInt(process.env.PORT || "3000", 10);
+  console.log("✓ Starting server on port", port);
   httpServer.listen(
+
     {
       port,
       host: "127.0.0.1",
     },
+
     () => {
-      log(`serving on http://127.0.0.1:${port}`);
+      console.log(`serving on http://127.0.0.1:${port}`);
     },
   );
 })();
+
+console.log("========== SERVER STARTED ==========");
