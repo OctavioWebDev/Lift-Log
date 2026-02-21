@@ -70,6 +70,9 @@
           <a href="/goals" class="text-brand-700 hover:text-brand-900 font-medium transition text-sm lg:text-base">
             Goals
           </a>
+          <a href="/billing" class="text-brand-700 hover:text-brand-900 font-medium transition text-sm lg:text-base">
+  Billing
+</a>
 
           <!-- ← ADD ADMIN LINK HERE (Desktop) -->
           <% if (typeof user !=='undefined' && user && user.isAdmin) { %>
@@ -130,6 +133,10 @@
           class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
           Goals
         </a>
+        <a href="/billing"
+  class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
+  Billing
+</a>
 
         <!-- ← ADD ADMIN LINK HERE (Mobile) -->
         <% if (typeof user !=='undefined' && user && user.isAdmin) { %>

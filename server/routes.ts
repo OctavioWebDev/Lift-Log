@@ -1,9 +1,12 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, isValidPassword, isValidUsername } from "./auth";
+import { stripe, MONTHLY_PRICE_ID, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
+import { requireSubscription, checkTrial } from "./middleware/subscription";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -13,32 +16,24 @@ export async function registerRoutes(
   // ============================================================================
   // AUTHENTICATION MIDDLEWARE
   // ============================================================================
-
-  // Attach user to all requests
   app.use(attachUser);
+  app.use(checkTrial);
 
   // ============================================================================
   // PUBLIC LANDING PAGE
   // ============================================================================
-
-  // Landing page (only show if not logged in)
   app.get("/", async (req, res) => {
-    // If user is logged in, redirect to workout log
     if (req.session?.userId) {
       return res.redirect("/app");
     }
-
-    // If not logged in, show landing page
     res.render("landing", {
       title: "Lift-Log - Track Your Progress, Build Real Strength"
     });
   });
 
   // ============================================================================
-  // AUTHENTICATION ROUTES (Public - No auth required)
+  // AUTHENTICATION ROUTES
   // ============================================================================
-
-  // Login page
   app.get("/login", (req, res) => {
     if (req.session?.userId) {
       return res.redirect("/app");
@@ -46,35 +41,24 @@ export async function registerRoutes(
     res.render("login", { error: null });
   });
 
-  // Login handler
   app.post("/login", async (req, res) => {
     try {
       const { username, password } = req.body;
-
       if (!username || !password) {
         return res.render("login", { error: "Username and password are required" });
       }
-
-      // Try to find user by username
       let user = await storage.getUserByUsername(username);
-
-      // If not found by username, try email
       if (!user && isValidEmail(username)) {
         const allUsers = await storage.getAllUsers();
         user = allUsers.find(u => u.email === username);
       }
-
       if (!user) {
         return res.render("login", { error: "Invalid username or password" });
       }
-
-      // Verify password
       const isValid = await verifyPassword(password, user.passwordHash);
       if (!isValid) {
         return res.render("login", { error: "Invalid username or password" });
       }
-
-      // Set session
       req.session!.userId = user.id;
       res.redirect("/app");
     } catch (error) {
@@ -83,7 +67,6 @@ export async function registerRoutes(
     }
   });
 
-  // Signup page
   app.get("/signup", (req, res) => {
     if (req.session?.userId) {
       return res.redirect("/app");
@@ -91,65 +74,45 @@ export async function registerRoutes(
     res.render("signup", { error: null });
   });
 
-  // Signup handler
   app.post("/signup", async (req, res) => {
     try {
       const { username, email, password, confirmPassword } = req.body;
-
-      // ✅ ADD THIS - Limit to first 100 users
       const allUsers = await storage.getAllUsers();
       if (allUsers.length >= 100) {
         return res.render("signup", {
           error: "Beta access is currently full. Email chirhostrength@gmail.com to join the waitlist."
         });
       }
-
-      // Validate username
       const usernameValidation = isValidUsername(username);
       if (!usernameValidation.valid) {
         return res.render("signup", { error: usernameValidation.message });
       }
-
-      // Validate password
       const passwordValidation = isValidPassword(password);
       if (!passwordValidation.valid) {
         return res.render("signup", { error: passwordValidation.message });
       }
-
-      // Check passwords match
       if (password !== confirmPassword) {
         return res.render("signup", { error: "Passwords do not match" });
       }
-
-      // Validate email if provided
       if (email && !isValidEmail(email)) {
         return res.render("signup", { error: "Invalid email address" });
       }
-
-      // Check if username exists
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
         return res.render("signup", { error: "Username already taken" });
       }
-
-      // Check if email exists (if provided)
       if (email) {
-        const allUsers = await storage.getAllUsers();
         const emailExists = allUsers.some(u => u.email === email);
         if (emailExists) {
           return res.render("signup", { error: "Email already registered" });
         }
       }
-
-      // Hash password and create user
       const passwordHash = await hashPassword(password);
       const user = await storage.createUser({
         username,
         email: email || null,
         passwordHash,
       });
-
-      // Set session
       req.session!.userId = user.id;
       res.redirect("/app");
     } catch (error) {
@@ -158,7 +121,6 @@ export async function registerRoutes(
     }
   });
 
-  // Logout handler
   app.post("/logout", (req, res) => {
     req.session?.destroy(() => {
       res.redirect("/");
@@ -166,11 +128,9 @@ export async function registerRoutes(
   });
 
   // ============================================================================
-  // PAGE ROUTES (Protected - Require authentication)
+  // PAGE ROUTES (Protected)
   // ============================================================================
-
-  // Workout Log page
-  app.get("/app", requireAuth, async (req, res) => {
+  app.get("/app", requireSubscription, async (req, res) => {
     try {
       const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
       const workouts = await storage.getWorkoutSetsForDate(date);
@@ -188,36 +148,27 @@ export async function registerRoutes(
     }
   });
 
-  // Dashboard page
-  app.get("/dashboard", requireAuth, async (req, res) => {
+  app.get("/dashboard", requireSubscription, async (req, res) => {
     try {
-      // Get stats for dashboard
       const allWorkouts = await storage.getAllWorkoutSets();
       const goals = await storage.getAllGoals();
-
-      // Calculate this week's stats
       const now = new Date();
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
       startOfWeek.setHours(0, 0, 0, 0);
-
       const workoutsThisWeek = allWorkouts.filter(w => {
         const workoutDate = new Date(w.date);
         return workoutDate >= startOfWeek;
       });
-
       const totalVolume = workoutsThisWeek.reduce((sum, w) => {
         return sum + (w.sets * w.weight * w.reps);
       }, 0);
-
       const stats = {
         workoutsThisWeek: workoutsThisWeek.length,
         totalVolume: totalVolume,
         activeGoals: goals.length
       };
-
       const recentWorkouts = allWorkouts.slice(0, 10);
-
       res.render("dashboard", {
         title: "Dashboard - Lift-Log",
         stats,
@@ -231,11 +182,9 @@ export async function registerRoutes(
     }
   });
 
-  // Goals page
-  app.get("/goals", requireAuth, async (req, res) => {
+  app.get("/goals", requireSubscription, async (req, res) => {
     try {
       const goals = await storage.getAllGoals();
-
       res.render("goals", {
         title: "Goals - Lift-Log",
         goals,
@@ -248,40 +197,30 @@ export async function registerRoutes(
   });
 
   // ============================================================================
-  // ADMIN ROUTES (Require admin privileges)
+  // ADMIN ROUTES
   // ============================================================================
-
-  // Admin Panel
   app.get("/admin", requireAuth, async (req, res) => {
     try {
-      // Check if user is admin
       const currentUser = await storage.getUser(req.session!.userId);
       if (!currentUser?.isAdmin) {
         return res.status(403).send("Access denied. Admin privileges required.");
       }
-
-      // Get all data
       const users = await storage.getAllUsers();
       const allWorkouts = await storage.getAllWorkoutSets();
       const allGoals = await storage.getAllGoals();
-
-      // Calculate stats
       const now = new Date();
       const startOfDay = new Date(now);
       startOfDay.setHours(0, 0, 0, 0);
-
       const activeToday = allWorkouts.filter(w => {
         const workoutDate = new Date(w.date);
         return workoutDate >= startOfDay;
       }).length;
-
       const stats = {
         totalUsers: users.length,
         totalWorkouts: allWorkouts.length,
         totalGoals: allGoals.length,
         activeToday: activeToday,
       };
-
       res.render("admin", {
         title: "Admin Panel - Lift-Log",
         users,
@@ -296,24 +235,17 @@ export async function registerRoutes(
     }
   });
 
-  // Delete user (admin only)
   app.delete("/admin/users/:id", requireAuth, async (req, res) => {
     try {
       const currentUser = await storage.getUser(req.session!.userId);
       if (!currentUser?.isAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
-
       const userId = req.params.id;
-
-      // Don't allow deleting yourself
       if (userId === req.session!.userId) {
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
-
-      // Delete user
       await storage.deleteUser(userId);
-
       res.status(200).send("");
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -322,9 +254,137 @@ export async function registerRoutes(
   });
 
   // ============================================================================
-  // API ROUTES (Return JSON or HTML partials for HTMX)
+  // BILLING ROUTES
   // ============================================================================
+  app.get("/billing", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session!.userId);
+    if (!user) return res.redirect("/login");
+    const status = getSubscriptionStatus(user);
+    const expired = req.query.expired === "true";
+    let trialDaysLeft = 0;
+    if (user.trialEndsAt) {
+      const diff = new Date(user.trialEndsAt).getTime() - Date.now();
+      trialDaysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }
+    res.render("billing", {
+      title: "Billing - Lift-Log",
+      user: req.user,
+      status,
+      expired,
+      trialDaysLeft,
+      periodEndsAt: user.currentPeriodEndsAt,
+    });
+  });
 
+  app.post("/billing/checkout", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session!.userId);
+      if (!user) return res.redirect("/login");
+      const interval = req.body.interval;
+      const priceId = interval === "monthly" ? MONTHLY_PRICE_ID : ANNUAL_PRICE_ID;
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${req.protocol}://${req.get("host")}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.protocol}://${req.get("host")}/billing`,
+        metadata: { userId: user.id, interval },
+        subscription_data: {
+          metadata: { userId: user.id, interval },
+        },
+      });
+      res.redirect(session.url!);
+    } catch (error) {
+      console.error("Checkout error:", error);
+      res.redirect("/billing?error=true");
+    }
+  });
+
+  app.get("/billing/success", requireAuth, async (req, res) => {
+    res.render("billing-success", {
+      title: "Subscription Active - Lift-Log",
+      user: req.user,
+    });
+  });
+
+  app.post("/billing/cancel", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session!.userId);
+      if (!user || !user.stripeSubscriptionId) return res.redirect("/billing");
+      await stripe.subscriptions.update(user.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+      res.render("billing-cancel", {
+        title: "Subscription Cancelled - Lift-Log",
+        user: req.user,
+      });
+    } catch (error) {
+      console.error("Cancel error:", error);
+      res.redirect("/billing?error=true");
+    }
+  });
+
+  app.post("/billing/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    const sig = req.headers["stripe-signature"] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      return res.status(400).send("Webhook secret not configured");
+    }
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error("Webhook error:", err);
+      return res.status(400).send("Webhook signature verification failed");
+    }
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object as any;
+          const userId = session.metadata?.userId;
+          const interval = session.metadata?.interval;
+          if (!userId) break;
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          await storage.updateUserSubscription(userId, {
+            subscriptionStatus: "active",
+            subscriptionInterval: interval,
+            stripeCustomerId: session.customer,
+            stripeSubscriptionId: session.subscription,
+            currentPeriodEndsAt: new Date((subscription as any).current_period_end * 1000),
+          });
+          break;
+        }
+        case "invoice.payment_succeeded": {
+          const invoice = event.data.object as any;
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+          const userId = (subscription as any).metadata?.userId;
+          if (!userId) break;
+          await storage.updateUserSubscription(userId, {
+            subscriptionStatus: "active",
+            currentPeriodEndsAt: new Date((subscription as any).current_period_end * 1000),
+          });
+          break;
+        }
+        case "customer.subscription.deleted": {
+          const subscription = event.data.object as any;
+          const userId = subscription.metadata?.userId;
+          if (!userId) break;
+          await storage.updateUserSubscription(userId, {
+            subscriptionStatus: "expired",
+          });
+          break;
+        }
+      }
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Webhook handler error:", error);
+      res.status(500).json({ error: "Webhook handler failed" });
+    }
+  });
+
+  // ============================================================================
+  // API ROUTES
+  // ============================================================================
   app.get("/api/workout-sets", async (req, res) => {
     try {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
@@ -346,32 +406,25 @@ export async function registerRoutes(
     }
   });
 
-  // Create workout set - Returns HTML partial for HTMX
   app.post("/api/workout-sets", async (req, res) => {
     try {
       const result = insertWorkoutSetSchema.safeParse(req.body);
-
       if (!result.success) {
         return res.status(400).send(
           `<div class="text-red-600 p-4">${fromError(result.error).toString()}</div>`
         );
       }
       const workoutSet = await storage.createWorkoutSet(result.data);
-
-      // Return HTML partial instead of JSON for HTMX
       const html = await new Promise<string>((resolve, reject) => {
         res.app.render("partials/workout-item", { workout: workoutSet }, (err, html) => {
           if (err) reject(err);
           else resolve(html);
         });
       });
-
       res.send(html);
     } catch (error) {
       console.error("Error creating workout set:", error);
-      res.status(500).send(
-        `<div class="text-red-600 p-4">Failed to create workout set</div>`
-      );
+      res.status(500).send(`<div class="text-red-600 p-4">Failed to create workout set</div>`);
     }
   });
 
@@ -381,19 +434,14 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid ID" });
       }
-
       const result = updateWorkoutSetSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({
-          message: fromError(result.error).toString()
-        });
+        return res.status(400).json({ message: fromError(result.error).toString() });
       }
-
       const workoutSet = await storage.updateWorkoutSet(id, result.data);
       if (!workoutSet) {
         return res.status(404).json({ message: "Workout set not found" });
       }
-
       res.json(workoutSet);
     } catch (error) {
       console.error("Error updating workout set:", error);
@@ -401,21 +449,17 @@ export async function registerRoutes(
     }
   });
 
-  // Delete workout set - Returns empty for HTMX
   app.delete("/api/workout-sets/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid ID" });
       }
-
       await storage.deleteWorkoutSet(id);
       res.status(200).send("");
     } catch (error) {
       console.error("Error deleting workout set:", error);
-      res.status(500).send(
-        `<div class="text-red-600 p-4">Failed to delete workout set</div>`
-      );
+      res.status(500).send(`<div class="text-red-600 p-4">Failed to delete workout set</div>`);
     }
   });
 
@@ -429,7 +473,6 @@ export async function registerRoutes(
     }
   });
 
-  // Create goal - Returns HTML partial for HTMX
   app.post("/api/goals", async (req, res) => {
     try {
       const result = insertGoalSchema.safeParse(req.body);
@@ -438,23 +481,17 @@ export async function registerRoutes(
           `<div class="text-red-600 p-4">${fromError(result.error).toString()}</div>`
         );
       }
-
       const goal = await storage.createGoal(result.data);
-
-      // Return HTML partial instead of JSON for HTMX
       const html = await new Promise<string>((resolve, reject) => {
         res.app.render("partials/goal-item", { goal }, (err, html) => {
           if (err) reject(err);
           else resolve(html);
         });
       });
-
       res.send(html);
     } catch (error) {
       console.error("Error creating goal:", error);
-      res.status(500).send(
-        `<div class="text-red-600 p-4">Failed to create goal</div>`
-      );
+      res.status(500).send(`<div class="text-red-600 p-4">Failed to create goal</div>`);
     }
   });
 
@@ -462,16 +499,12 @@ export async function registerRoutes(
     try {
       const result = updateGoalSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({
-          message: fromError(result.error).toString()
-        });
+        return res.status(400).json({ message: fromError(result.error).toString() });
       }
-
       const goal = await storage.updateGoal(decodeURIComponent(req.params.exercise), result.data);
       if (!goal) {
         return res.status(404).json({ message: "Goal not found" });
       }
-
       res.json(goal);
     } catch (error) {
       console.error("Error updating goal:", error);
@@ -479,21 +512,17 @@ export async function registerRoutes(
     }
   });
 
-  // Delete goal - Returns empty for HTMX
   app.delete("/api/goals/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid ID" });
       }
-
       await storage.deleteGoal(id);
       res.status(200).send("");
     } catch (error) {
       console.error("Error deleting goal:", error);
-      res.status(500).send(
-        `<div class="text-red-600 p-4">Failed to delete goal</div>`
-      );
+      res.status(500).send(`<div class="text-red-600 p-4">Failed to delete goal</div>`);
     }
   });
 

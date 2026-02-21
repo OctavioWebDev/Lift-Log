@@ -12,21 +12,29 @@ import {
   goals
 } from "../shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
-  deleteUser(id: string): Promise<void>;  // ← Add this
-  
+  deleteUser(id: string): Promise<void>;
+  updateUserSubscription(id: string, data: Partial<{
+    trialEndsAt: Date;
+    subscriptionStatus: string;
+    subscriptionInterval: string;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
+    currentPeriodEndsAt: Date;
+  }>): Promise<User | undefined>;
+
   getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]>;
   getAllWorkoutSets(): Promise<WorkoutSet[]>;
   createWorkoutSet(workoutSet: InsertWorkoutSet): Promise<WorkoutSet>;
   updateWorkoutSet(id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined>;
   deleteWorkoutSet(id: number): Promise<void>;
-  
+
   getAllGoals(): Promise<Goal[]>;
   getGoalByExercise(exercise: string): Promise<Goal | undefined>;
   createGoal(goal: InsertGoal): Promise<Goal>;
@@ -57,35 +65,42 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  // ← Add this method
   async deleteUser(id: string): Promise<void> {
     await db.delete(users).where(eq(users.id, id));
   }
 
+  async updateUserSubscription(id: string, data: Partial<{
+    trialEndsAt: Date;
+    subscriptionStatus: string;
+    subscriptionInterval: string;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
+    currentPeriodEndsAt: Date;
+  }>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
   async getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]> {
-    // Parse the date string as UTC to avoid timezone issues
-    // date format: "YYYY-MM-DD"
     const [year, month, day] = date.split('-').map(Number);
-    
     const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
     const startTimestamp = startOfDay.getTime();
-    
     const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
     const endTimestamp = endOfDay.getTime();
-    
-    // Get all sets and filter in JavaScript since Drizzle returns Date objects
+
     const allSets = await db
       .select()
       .from(workoutSets)
       .orderBy(desc(workoutSets.date));
-    
-    // Filter by date range in JavaScript
-    const sets = allSets.filter(set => {
+
+    return allSets.filter(set => {
       const setTimestamp = set.date instanceof Date ? set.date.getTime() : set.date;
       return setTimestamp >= startTimestamp && setTimestamp <= endTimestamp;
     });
-    
-    return sets;
   }
 
   async getAllWorkoutSets(): Promise<WorkoutSet[]> {
