@@ -11,10 +11,16 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   email: text("email"),
   passwordHash: text("password_hash").notNull(),
-  isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),  // ← Add this
+  isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
+  trialEndsAt: integer("trial_ends_at", { mode: "timestamp" }),
+  subscriptionStatus: text("subscription_status").default("trial"),
+  subscriptionInterval: text("subscription_interval"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  currentPeriodEndsAt: integer("current_period_ends_at", { mode: "timestamp" }),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -39,14 +45,24 @@ export const workoutSets = sqliteTable("workout_sets", {
   date: integer("date", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
-export const insertWorkoutSetSchema = createInsertSchema(workoutSets).omit({
+export const insertWorkoutSetSchema = createInsertSchema(workoutSets, {
+  date: z.string().transform((str) => new Date(str)),
+  sets: z.coerce.number().int().positive(),
+  weight: z.coerce.number().nonnegative(),
+  reps: z.coerce.number().int().positive(),
+  rpe: z.coerce.number().min(1).max(10).optional().nullable(),
+}).omit({
   id: true,
-  date: true,
 });
 
-export const updateWorkoutSetSchema = createInsertSchema(workoutSets).omit({
+export const updateWorkoutSetSchema = createInsertSchema(workoutSets, {
+  date: z.string().transform((str) => new Date(str)),
+  sets: z.coerce.number().int().positive(),
+  weight: z.coerce.number().nonnegative(),
+  reps: z.coerce.number().int().positive(),
+  rpe: z.coerce.number().min(1).max(10).optional().nullable(),
+}).omit({
   id: true,
-  date: true,
 }).partial();
 
 export type InsertWorkoutSet = z.infer<typeof insertWorkoutSetSchema>;
@@ -64,11 +80,17 @@ export const goals = sqliteTable("goals", {
   unit: text("unit").notNull().default("lbs"),
 });
 
-export const insertGoalSchema = createInsertSchema(goals).omit({
+export const insertGoalSchema = createInsertSchema(goals, {
+  current: z.coerce.number().nonnegative(),
+  target: z.coerce.number().positive(),
+}).omit({
   id: true,
 });
 
-export const updateGoalSchema = createInsertSchema(goals).omit({
+export const updateGoalSchema = createInsertSchema(goals, {
+  current: z.coerce.number().nonnegative(),
+  target: z.coerce.number().positive(),
+}).omit({
   id: true,
 }).partial();
 

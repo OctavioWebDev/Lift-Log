@@ -1,335 +1,384 @@
 <%- include('partials/header') %>
 
-<div class="space-y-4 sm:space-y-6">
-  <!-- Page Header - Mobile Optimized -->
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-    <h1 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-1">Workout Log</h1>
-    <p class="text-sm sm:text-base text-brand-600">Track your sets and build strength</p>
-  </div>
+  <div class="space-y-4 sm:space-y-6">
+    <!-- Page Header - Mobile Optimized -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <h1 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-1">Workout Log</h1>
+      <p class="text-sm sm:text-base text-brand-600">Track your sets and build strength</p>
+    </div>
 
-  <!-- Date Navigation - Mobile First -->
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-    <div class="space-y-3">
-      <!-- Date Display -->
-      <div class="text-sm text-brand-600">
-        <span class="font-semibold text-brand-900" id="date-display"></span>
-      </div>
-      
-      <!-- Navigation Controls -->
-      <div class="flex items-center gap-2">
-        <!-- Previous Day -->
-        <button 
-          onclick="changeDate(-1)"
-          class="p-2 sm:p-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex-shrink-0"
-          title="Previous day"
-        >
-          <svg class="w-5 h-5 sm:w-6 sm:h-6 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        
-        <!-- Date Picker -->
-        <input 
-          type="date" 
-          id="workout-date" 
-          name="date"
-          value="<%= date %>"
-          class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm sm:text-base text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-          onchange="navigateToDate(this.value)"
-        >
-        
-        <!-- Next Day -->
-        <button 
-          onclick="changeDate(1)"
-          class="p-2 sm:p-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex-shrink-0"
-          title="Next day"
-        >
-          <svg class="w-5 h-5 sm:w-6 sm:h-6 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-        
-        <!-- Today Button -->
-        <button 
-          onclick="goToToday()"
-          class="px-3 sm:px-4 py-2 bg-brand-900 text-white rounded-lg hover:bg-brand-800 transition text-sm font-medium whitespace-nowrap"
-        >
-          Today
-        </button>
+    <!-- Date Navigation - Mobile First -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <div class="space-y-3">
+        <!-- Date Display -->
+        <div class="text-sm text-brand-600">
+          <span class="font-semibold text-brand-900" id="date-display"></span>
+        </div>
+
+        <!-- Navigation Controls -->
+        <div class="flex items-center gap-2">
+          <!-- Previous Day -->
+          <button onclick="changeDate(-1)"
+            class="p-2 sm:p-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex-shrink-0"
+            title="Previous day">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <!-- Date Picker -->
+          <input type="date" id="workout-date" name="date" value="<%= date %>"
+            class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm sm:text-base text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            onchange="navigateToDate(this.value)">
+
+          <!-- Next Day -->
+          <button onclick="changeDate(1)"
+            class="p-2 sm:p-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex-shrink-0"
+            title="Next day">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          <!-- Today Button -->
+          <button onclick="goToToday()"
+            class="px-3 sm:px-4 py-2 bg-brand-900 text-white rounded-lg hover:bg-brand-800 transition text-sm font-medium whitespace-nowrap">
+            Today
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Add Workout Form - Mobile Optimized -->
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-    <h2 class="text-lg sm:text-xl font-bold text-brand-900 mb-4">Log New Set</h2>
-    
-    <form 
-      hx-post="/api/workout-sets"
-      hx-target="#workout-list"
-      hx-swap="afterbegin"
-      hx-on::after-request="this.reset()"
-      class="space-y-3 sm:space-y-4"
-    >
-      <input type="hidden" name="date" id="form-date" value="<%= date %>">
-      
-      <!-- Exercise - Full Width on Mobile -->
-      <div>
-        <label class="block text-sm font-medium text-brand-700 mb-1">Exercise</label>
-        <input 
-          type="text" 
-          name="exercise" 
-          required
-          placeholder="Squat"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
-        >
-      </div>
-      
-      <!-- Sets & Reps - 2 Columns -->
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Sets</label>
-          <input 
-            type="number" 
-            name="sets" 
-            value="3"
-            min="1"
-            required
-            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Reps</label>
-          <input 
-            type="number" 
-            name="reps" 
-            required
-            min="1"
-            placeholder="5"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-        </div>
-      </div>
-      
-      <!-- Weight & RPE - 2 Columns -->
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Weight (lbs)</label>
-          <input 
-            type="number" 
-            name="weight" 
-            required
-            placeholder="225"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">RPE (1-10)</label>
-          <input 
-            type="number" 
-            name="rpe" 
-            step="0.5"
-            min="1"
-            max="10"
-            placeholder="8"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-        </div>
-      </div>
-      
-      <button 
-        type="submit"
-        class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-3 sm:py-3.5 rounded-lg transition text-base"
-      >
-        Log Set
-      </button>
-    </form>
-  </div>
+    <!-- Add Workout Form - Mobile Optimized -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <h2 class="text-lg sm:text-xl font-bold text-brand-900 mb-4">Log New Set</h2>
 
-  <!-- Workout List - Mobile Optimized -->
-  <div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg sm:text-xl font-bold text-brand-900">Today's Workouts</h2>
-        <span class="text-xs sm:text-sm text-brand-600 bg-brand-100 px-2 py-1 rounded"><%= workouts.length %> sets</span>
-      </div>
-    </div>
-    
-    <div id="workout-list" class="divide-y divide-gray-200">
-      <% if (workouts.length === 0) { %>
-        <div class="px-4 sm:px-6 py-8 sm:py-12 text-center">
-          <p class="text-brand-600 text-sm sm:text-base">No workouts logged for this date.</p>
-          <p class="text-xs sm:text-sm text-brand-500 mt-1">Use the form above to log your first set!</p>
+      <form hx-post="/api/workout-sets" hx-target="#workout-list" hx-swap="afterbegin"
+        hx-on::after-request="this.reset()" class="space-y-3 sm:space-y-4">
+        <input type="hidden" name="date" id="form-date" value="<%= date %>">
+
+        <!-- Exercise - Full Width on Mobile -->
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-1">Exercise</label>
+          <input type="text" name="exercise" required placeholder="Squat"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
-      <% } else { %>
-        <% workouts.forEach(function(workout) { %>
-          <div class="px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition" id="workout-<%= workout.id %>">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex-1 min-w-0">
-                <h3 class="text-base sm:text-lg font-bold text-brand-900 mb-0.5 truncate"><%= workout.exercise %></h3>
-                <p class="text-sm text-brand-600">
-                  <%= workout.sets %> × <%= workout.weight %> lbs × <%= workout.reps %> reps
-                  <% if (workout.rpe) { %>
-                    <span class="text-brand-500">• RPE <%= workout.rpe %></span>
-                  <% } %>
-                </p>
-                <p class="text-xs text-brand-500 mt-1">
-                  <%= new Date(workout.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
-                </p>
-              </div>
-              
-              <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                <!-- Edit Button -->
-                <button
-                  onclick="editWorkout(<%= workout.id %>, '<%= workout.exercise %>', <%= workout.sets %>, <%= workout.weight %>, <%= workout.reps %>, <%= workout.rpe || 'null' %>)"
-                  class="text-brand-600 hover:text-brand-900 transition p-1.5 sm:p-2"
-                  title="Edit"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                
-                <!-- Delete Button -->
-                <button
-                  hx-delete="/api/workout-sets/<%= workout.id %>"
-                  hx-target="#workout-<%= workout.id %>"
-                  hx-swap="outerHTML"
-                  hx-confirm="Delete this workout?"
-                  class="text-brand-500 hover:text-red-600 transition p-1.5 sm:p-2"
-                  title="Delete"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+
+        <!-- Sets & Reps - 2 Columns -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Sets</label>
+            <input type="number" name="sets" value="3" min="1" required
+              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
           </div>
-        <% }); %>
+
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Reps</label>
+            <input type="number" name="reps" required min="1" placeholder="5"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          </div>
+        </div>
+
+        <!-- Weight & RPE - 2 Columns -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Weight (lbs)</label>
+            <input type="number" name="weight" required placeholder="225"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">RPE (1-10)</label>
+            <input type="number" name="rpe" step="0.5" min="1" max="10" placeholder="8"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          </div>
+        </div>
+
+        <button type="submit"
+          class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-3 sm:py-3.5 rounded-lg transition text-base">
+          Log Set
+        </button>
+      </form>
+    </div>
+
+    <!-- Workout List - Mobile Optimized -->
+    <div class="bg-white rounded-lg border border-gray-200">
+      <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg sm:text-xl font-bold text-brand-900">Today's Workouts</h2>
+          <span class="text-xs sm:text-sm text-brand-600 bg-brand-100 px-2 py-1 rounded">
+            <%= workouts.length %> sets
+          </span>
+        </div>
+      </div>
+
+      <div id="workout-list" class="divide-y divide-gray-200">
+        <% if (workouts.length===0) { %>
+          <div class="px-4 sm:px-6 py-8 sm:py-12 text-center">
+            <p class="text-brand-600 text-sm sm:text-base">No workouts logged for this date.</p>
+            <p class="text-xs sm:text-sm text-brand-500 mt-1">Use the form above to log your first set!</p>
+          </div>
+          <% } else { %>
+            <% workouts.forEach(function(workout) { %>
+              <div class="px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition" id="workout-<%= workout.id %>">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-base sm:text-lg font-bold text-brand-900 mb-0.5 truncate">
+                      <%= workout.exercise %>
+                    </h3>
+                    <p class="text-sm text-brand-600">
+                      <%= workout.sets %> × <%= workout.weight %> lbs × <%= workout.reps %> reps
+                            <% if (workout.rpe) { %>
+                              <span class="text-brand-500">• RPE <%= workout.rpe %></span>
+                              <% } %>
+                    </p>
+                    <p class="text-xs text-brand-500 mt-1">
+                      <%= new Date(workout.date).toLocaleTimeString('en-US', { hour: 'numeric' , minute: '2-digit' }) %>
+                    </p>
+                  </div>
+
+                  <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <!-- Edit Button -->
+                    <button
+                      onclick="editWorkout(<%= workout.id %>, <%= JSON.stringify(workout.exercise) %>, <%= workout.sets %>, <%= workout.weight %>, <%= workout.reps %>, <%= workout.rpe || 'null' %>)"
+                      class="text-brand-600 hover:text-brand-900 transition p-1.5 sm:p-2" title="Edit">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+
+                    <!-- Delete Button -->
+                    <button hx-delete="/api/workout-sets/<%= workout.id %>" hx-target="#workout-<%= workout.id %>"
+                      hx-swap="outerHTML" hx-confirm="Delete this workout?"
+                      class="text-brand-500 hover:text-red-600 transition p-1.5 sm:p-2" title="Delete">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <% }); %>
+                <% } %>
+      </div>
+    </div>
+
+    <!-- Goal Progress Section - MOVED OUTSIDE WORKOUT LIST -->
+    <% if (goals && goals.length> 0) { %>
+      <div class="bg-white rounded-lg border border-gray-200">
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg sm:text-xl font-bold text-brand-900">Your Goals</h2>
+            <a href="/goals" class="text-xs sm:text-sm font-medium text-brand-700 hover:text-brand-900 transition">
+              Manage →
+            </a>
+          </div>
+        </div>
+
+        <div class="divide-y divide-gray-200">
+          <% goals.forEach(function(goal) { %>
+            <% const progress=Math.min((goal.current / goal.target) * 100, 100); const remaining=goal.target -
+              goal.current; %>
+              <div class="px-4 sm:px-6 py-3 sm:py-4">
+                <div class="flex justify-between items-start mb-2">
+                  <h3 class="font-bold text-brand-900 text-sm sm:text-base">
+                    <%= goal.exercise %>
+                  </h3>
+                  <span class="text-xs sm:text-sm font-medium text-brand-600">
+                    <%= progress.toFixed(0) %>%
+                  </span>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div class="bg-brand-900 h-2 rounded-full transition-all duration-500"
+                    style="width: <%= progress %>%"></div>
+                </div>
+
+                <div class="flex justify-between text-xs sm:text-sm text-brand-600">
+                  <span>
+                    <%= goal.current %>
+                      <%= goal.unit %>
+                  </span>
+                  <span class="text-brand-500">
+                    <%= remaining %>
+                      <%= goal.unit %> to go
+                  </span>
+                  <span>
+                    <%= goal.target %>
+                      <%= goal.unit %>
+                  </span>
+                </div>
+              </div>
+              <% }); %>
+        </div>
+      </div>
       <% } %>
+  </div>
+  <!-- Edit Modal - Mobile Optimized -->
+  <div id="edit-workout-modal"
+    class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
+      <h3 class="text-xl font-bold text-brand-900 mb-4">Edit Workout</h3>
+      <form id="edit-workout-form" class="space-y-3">
+        <input type="hidden" id="edit-workout-id">
+
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-1">Exercise</label>
+          <input type="text" id="edit-exercise" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Sets</label>
+            <input type="number" id="edit-sets" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Reps</label>
+            <input type="number" id="edit-reps" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Weight (lbs)</label>
+            <input type="number" id="edit-weight" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">RPE</label>
+            <input type="number" step="0.5" min="1" max="10" id="edit-rpe"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+          <button type="submit"
+            class="flex-1 bg-brand-900 hover:bg-brand-800 text-white py-2.5 rounded-lg transition font-medium">
+            Save
+          </button>
+          <button type="button" onclick="closeEditModal()"
+            class="flex-1 bg-gray-200 hover:bg-gray-300 text-brand-900 py-2.5 rounded-lg transition font-medium">
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   </div>
-</div>
 
-<!-- Edit Modal - Mobile Optimized -->
-<div id="edit-workout-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
-    <h3 class="text-xl font-bold text-brand-900 mb-4">Edit Workout</h3>
-    <form id="edit-workout-form" class="space-y-3">
-      <input type="hidden" id="edit-workout-id">
-      
-      <div>
-        <label class="block text-sm font-medium text-brand-700 mb-1">Exercise</label>
-        <input type="text" id="edit-exercise" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Sets</label>
-          <input type="number" id="edit-sets" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Reps</label>
-          <input type="number" id="edit-reps" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
-        </div>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Weight (lbs)</label>
-          <input type="number" id="edit-weight" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">RPE</label>
-          <input type="number" step="0.5" min="1" max="10" id="edit-rpe" class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
-        </div>
-      </div>
-      
-      <div class="flex gap-3 pt-2">
-        <button type="submit" class="flex-1 bg-brand-900 hover:bg-brand-800 text-white py-2.5 rounded-lg transition font-medium">
-          Save
-        </button>
-        <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-brand-900 py-2.5 rounded-lg transition font-medium">
-          Cancel
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<script>
-const currentDate = '<%= date %>';
 
-function updateDateDisplays() {
-  const date = new Date(currentDate + 'T00:00:00');
-  const formatted = date.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric',
-    year: 'numeric'
-  });
-  document.getElementById('date-display').textContent = formatted;
-}
+  <script>
+    const currentDate = '<%= date %>';
 
-updateDateDisplays();
+    function updateDateDisplays() {
+      const date = new Date(currentDate + 'T00:00:00');
+      const formatted = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      document.getElementById('date-display').textContent = formatted;
+    }
 
-function navigateToDate(dateStr) {
-  window.location.href = `/app?date=${dateStr}`;
-}
+    updateDateDisplays();
 
-function changeDate(days) {
-  const date = new Date(currentDate + 'T00:00:00');
-  date.setDate(date.getDate() + days);
-  navigateToDate(date.toISOString().split('T')[0]);
-}
+    function navigateToDate(dateStr) {
+      window.location.href = `/app?date=${dateStr}`;
+    }
 
-function goToToday() {
-  navigateToDate(new Date().toISOString().split('T')[0]);
-}
+    function changeDate(days) {
+      const date = new Date(currentDate + 'T00:00:00');
+      date.setDate(date.getDate() + days);
+      navigateToDate(date.toISOString().split('T')[0]);
+    }
 
-function editWorkout(id, exercise, sets, weight, reps, rpe) {
-  document.getElementById('edit-workout-id').value = id;
-  document.getElementById('edit-exercise').value = exercise;
-  document.getElementById('edit-sets').value = sets;
-  document.getElementById('edit-weight').value = weight;
-  document.getElementById('edit-reps').value = reps;
-  document.getElementById('edit-rpe').value = rpe || '';
-  document.getElementById('edit-workout-modal').classList.remove('hidden');
-}
+    function goToToday() {
+      navigateToDate(new Date().toISOString().split('T')[0]);
+    }
 
-function closeEditModal() {
-  document.getElementById('edit-workout-modal').classList.add('hidden');
-}
+    function editWorkout(id, exercise, sets, weight, reps, rpe) {
+      document.getElementById('edit-workout-id').value = id;
+      document.getElementById('edit-exercise').value = exercise;
+      document.getElementById('edit-sets').value = sets;
+      document.getElementById('edit-weight').value = weight;
+      document.getElementById('edit-reps').value = reps;
+      document.getElementById('edit-rpe').value = rpe || '';
+      document.getElementById('edit-workout-modal').classList.remove('hidden');
+    }
 
-document.getElementById('edit-workout-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('edit-workout-id').value;
-  const data = {
-    exercise: document.getElementById('edit-exercise').value,
-    sets: parseInt(document.getElementById('edit-sets').value),
-    weight: parseFloat(document.getElementById('edit-weight').value),
-    reps: parseInt(document.getElementById('edit-reps').value),
-    rpe: document.getElementById('edit-rpe').value ? parseFloat(document.getElementById('edit-rpe').value) : null
-  };
-  
-  const response = await fetch(`/api/workout-sets/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  
-  if (response.ok) {
-    closeEditModal();
-    location.reload();
-  }
-});
+    function closeEditModal() {
+      document.getElementById('edit-workout-modal').classList.add('hidden');
+    }
 
-document.getElementById('edit-workout-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeEditModal();
-});
-</script>
+    document.getElementById('edit-workout-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-workout-id').value;
+      const data = {
+        exercise: document.getElementById('edit-exercise').value,
+        sets: parseInt(document.getElementById('edit-sets').value),
+        weight: parseFloat(document.getElementById('edit-weight').value),
+        reps: parseInt(document.getElementById('edit-reps').value),
+        rpe: document.getElementById('edit-rpe').value ? parseFloat(document.getElementById('edit-rpe').value) : null
+      };
 
-<%- include('partials/footer') %>
+      const response = await fetch(`/api/workout-sets/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        closeEditModal();
+        location.reload();
+      }
+    });
+
+    document.getElementById('edit-workout-modal').addEventListener('click', function (e) {
+      if (e.target === this) closeEditModal();
+    });
+
+    // Quick Goal Update Functions
+    function quickUpdateGoal(exercise, current, target) {
+      document.getElementById('quick-goal-exercise').value = exercise;
+      document.getElementById('quick-goal-exercise-display').textContent = exercise;
+      document.getElementById('quick-goal-current').value = current;
+      document.getElementById('quick-goal-modal').classList.remove('hidden');
+    }
+
+    function closeQuickGoalModal() {
+      document.getElementById('quick-goal-modal').classList.add('hidden');
+    }
+
+    document.getElementById('quick-goal-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const exercise = document.getElementById('quick-goal-exercise').value;
+      const current = parseFloat(document.getElementById('quick-goal-current').value);
+
+      try {
+        const response = await fetch(`/api/goals/${encodeURIComponent(exercise)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current })
+        });
+
+        if (response.ok) {
+          closeQuickGoalModal();
+          location.reload();
+        } else {
+          alert('Error updating goal');
+        }
+      } catch (error) {
+        alert('Error updating goal');
+      }
+    });
+
+    document.getElementById('quick-goal-modal').addEventListener('click', function (e) {
+      if (e.target === this) closeQuickGoalModal();
+    });
+  </script>
+
+
+  <%- include('partials/footer') %>

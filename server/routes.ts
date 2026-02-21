@@ -174,11 +174,12 @@ export async function registerRoutes(
     try {
       const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
       const workouts = await storage.getWorkoutSetsForDate(date);
-
+      const goals = await storage.getAllGoals();
       res.render("workout-log", {
         title: "Workout Log - Lift-Log",
         date,
         workouts,
+        goals,
         user: req.user
       });
     } catch (error) {
@@ -349,12 +350,12 @@ export async function registerRoutes(
   app.post("/api/workout-sets", async (req, res) => {
     try {
       const result = insertWorkoutSetSchema.safeParse(req.body);
+
       if (!result.success) {
         return res.status(400).send(
           `<div class="text-red-600 p-4">${fromError(result.error).toString()}</div>`
         );
       }
-
       const workoutSet = await storage.createWorkoutSet(result.data);
 
       // Return HTML partial instead of JSON for HTMX
