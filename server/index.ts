@@ -41,6 +41,7 @@ app.use(express.urlencoded({ extended: false }));
 // ============================================================================
 // SESSION CONFIGURATION - Add this AFTER body parsing
 // ============================================================================
+app.set('trust proxy', 1); // Trust nginx proxy
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
   resave: false,
