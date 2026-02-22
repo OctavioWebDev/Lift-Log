@@ -47,7 +47,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // HTTPS only in production
+    secure: true, // HTTPS only in production
     httpOnly: true, // Prevents XSS attacks
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   }
