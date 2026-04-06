@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -35,8 +35,11 @@ export type User = typeof users.$inferSelect;
 // ============================================================================
 // WORKOUT SETS TABLE
 // ============================================================================
+// shared/schema.ts
+
 export const workoutSets = sqliteTable("workout_sets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),  // ADD THIS
   exercise: text("exercise").notNull(),
   sets: integer("sets").notNull().default(1),
   weight: integer("weight").notNull(),
@@ -74,11 +77,14 @@ export type WorkoutSet = typeof workoutSets.$inferSelect;
 // ============================================================================
 export const goals = sqliteTable("goals", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  exercise: text("exercise").notNull().unique(),
+  userId: text("user_id").notNull().references(() => users.id),
+  exercise: text("exercise").notNull(),
   current: integer("current").notNull(),
   target: integer("target").notNull(),
   unit: text("unit").notNull().default("lbs"),
-});
+}, (table) => ({
+  userExerciseUnique: uniqueIndex("goals_user_exercise_unique").on(table.userId, table.exercise),
+}));
 
 export const insertGoalSchema = createInsertSchema(goals, {
   current: z.coerce.number().nonnegative(),
