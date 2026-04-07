@@ -339,45 +339,6 @@
     document.getElementById('edit-workout-modal').addEventListener('click', function (e) {
       if (e.target === this) closeEditModal();
     });
-
-    // Quick Goal Update Functions
-    function quickUpdateGoal(exercise, current, target) {
-      document.getElementById('quick-goal-exercise').value = exercise;
-      document.getElementById('quick-goal-exercise-display').textContent = exercise;
-      document.getElementById('quick-goal-current').value = current;
-      document.getElementById('quick-goal-modal').classList.remove('hidden');
-    }
-
-    function closeQuickGoalModal() {
-      document.getElementById('quick-goal-modal').classList.add('hidden');
-    }
-
-    document.getElementById('quick-goal-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const exercise = document.getElementById('quick-goal-exercise').value;
-      const current = parseFloat(document.getElementById('quick-goal-current').value);
-
-      try {
-        const response = await fetch(`/api/goals/${encodeURIComponent(exercise)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ current })
-        });
-
-        if (response.ok) {
-          closeQuickGoalModal();
-          location.reload();
-        } else {
-          alert('Error updating goal');
-        }
-      } catch (error) {
-        alert('Error updating goal');
-      }
-    });
-
-    document.getElementById('quick-goal-modal').addEventListener('click', function (e) {
-      if (e.target === this) closeQuickGoalModal();
-    });
   </script>
 
 

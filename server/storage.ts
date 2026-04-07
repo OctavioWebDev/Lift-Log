@@ -12,9 +12,10 @@ import {
   goals
 } from "../shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
+  // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
@@ -29,20 +30,29 @@ export interface IStorage {
     currentPeriodEndsAt: Date;
   }>): Promise<User | undefined>;
 
-  getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]>;
-  getAllWorkoutSets(): Promise<WorkoutSet[]>;
+  // Workout methods — all scoped by userId
+  getWorkoutSetsForDate(userId: string, date: string): Promise<WorkoutSet[]>;
+  getAllWorkoutSets(userId: string): Promise<WorkoutSet[]>;
   createWorkoutSet(workoutSet: InsertWorkoutSet): Promise<WorkoutSet>;
-  updateWorkoutSet(id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined>;
-  deleteWorkoutSet(id: number): Promise<void>;
+  updateWorkoutSet(userId: string, id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined>;
+  deleteWorkoutSet(userId: string, id: number): Promise<void>;
 
-  getAllGoals(): Promise<Goal[]>;
-  getGoalByExercise(exercise: string): Promise<Goal | undefined>;
+  // Goal methods — all scoped by userId
+  getAllGoals(userId: string): Promise<Goal[]>;
+  getGoalByExercise(userId: string, exercise: string): Promise<Goal | undefined>;
   createGoal(goal: InsertGoal): Promise<Goal>;
-  updateGoal(exercise: string, updates: UpdateGoal): Promise<Goal | undefined>;
-  deleteGoal(id: number): Promise<void>;
+  updateGoal(userId: string, exercise: string, updates: UpdateGoal): Promise<Goal | undefined>;
+  deleteGoal(userId: string, id: number): Promise<void>;
+
+  // Admin methods — no userId filter
+  getAllWorkoutSetsAdmin(): Promise<WorkoutSet[]>;
+  getAllGoalsAdmin(): Promise<Goal[]>;
 }
 
 export class DatabaseStorage implements IStorage {
+
+  // ─── User Methods ────────────────────────────────────────────────────────────
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -85,26 +95,31 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getWorkoutSetsForDate(date: string): Promise<WorkoutSet[]> {
+  // ─── Workout Methods ─────────────────────────────────────────────────────────
+
+  async getWorkoutSetsForDate(userId: string, date: string): Promise<WorkoutSet[]> {
     const [year, month, day] = date.split('-').map(Number);
     const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-    const startTimestamp = startOfDay.getTime();
     const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
-    const endTimestamp = endOfDay.getTime();
 
     const allSets = await db
       .select()
       .from(workoutSets)
+      .where(eq(workoutSets.userId, userId))
       .orderBy(desc(workoutSets.date));
 
     return allSets.filter(set => {
-      const setTimestamp = set.date instanceof Date ? set.date.getTime() : set.date;
-      return setTimestamp >= startTimestamp && setTimestamp <= endTimestamp;
+      const ts = set.date instanceof Date ? set.date.getTime() : set.date;
+      return ts >= startOfDay.getTime() && ts <= endOfDay.getTime();
     });
   }
 
-  async getAllWorkoutSets(): Promise<WorkoutSet[]> {
-    return db.select().from(workoutSets).orderBy(desc(workoutSets.date));
+  async getAllWorkoutSets(userId: string): Promise<WorkoutSet[]> {
+    return db
+      .select()
+      .from(workoutSets)
+      .where(eq(workoutSets.userId, userId))
+      .orderBy(desc(workoutSets.date));
   }
 
   async createWorkoutSet(insertWorkoutSet: InsertWorkoutSet): Promise<WorkoutSet> {
@@ -115,25 +130,35 @@ export class DatabaseStorage implements IStorage {
     return workoutSet;
   }
 
-  async updateWorkoutSet(id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined> {
+  async updateWorkoutSet(userId: string, id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined> {
     const [workoutSet] = await db
       .update(workoutSets)
       .set(updates)
-      .where(eq(workoutSets.id, id))
+      .where(and(eq(workoutSets.id, id), eq(workoutSets.userId, userId)))
       .returning();
     return workoutSet || undefined;
   }
 
-  async deleteWorkoutSet(id: number): Promise<void> {
-    await db.delete(workoutSets).where(eq(workoutSets.id, id));
+  async deleteWorkoutSet(userId: string, id: number): Promise<void> {
+    await db
+      .delete(workoutSets)
+      .where(and(eq(workoutSets.id, id), eq(workoutSets.userId, userId)));
   }
 
-  async getAllGoals(): Promise<Goal[]> {
-    return db.select().from(goals);
+  // ─── Goal Methods ────────────────────────────────────────────────────────────
+
+  async getAllGoals(userId: string): Promise<Goal[]> {
+    return db
+      .select()
+      .from(goals)
+      .where(eq(goals.userId, userId));
   }
 
-  async getGoalByExercise(exercise: string): Promise<Goal | undefined> {
-    const [goal] = await db.select().from(goals).where(eq(goals.exercise, exercise));
+  async getGoalByExercise(userId: string, exercise: string): Promise<Goal | undefined> {
+    const [goal] = await db
+      .select()
+      .from(goals)
+      .where(and(eq(goals.userId, userId), eq(goals.exercise, exercise)));
     return goal || undefined;
   }
 
@@ -145,18 +170,31 @@ export class DatabaseStorage implements IStorage {
     return goal;
   }
 
-  async updateGoal(exercise: string, updates: UpdateGoal): Promise<Goal | undefined> {
+  async updateGoal(userId: string, exercise: string, updates: UpdateGoal): Promise<Goal | undefined> {
     const [goal] = await db
       .update(goals)
       .set(updates)
-      .where(eq(goals.exercise, exercise))
+      .where(and(eq(goals.userId, userId), eq(goals.exercise, exercise)))
       .returning();
     return goal || undefined;
   }
 
-  async deleteGoal(id: number): Promise<void> {
-    await db.delete(goals).where(eq(goals.id, id));
+  async deleteGoal(userId: string, id: number): Promise<void> {
+    await db
+      .delete(goals)
+      .where(and(eq(goals.id, id), eq(goals.userId, userId)));
   }
+
+  // ─── Admin Methods ────────────────────────────────────────────────────────────
+
+  async getAllWorkoutSetsAdmin(): Promise<WorkoutSet[]> {
+    return db.select().from(workoutSets).orderBy(desc(workoutSets.date));
+  }
+
+  async getAllGoalsAdmin(): Promise<Goal[]> {
+    return db.select().from(goals);
+  }
+
 }
 
 export const storage = new DatabaseStorage();

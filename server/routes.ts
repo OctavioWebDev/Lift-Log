@@ -59,7 +59,7 @@ export async function registerRoutes(
       if (!isValid) {
         return res.render("login", { error: "Invalid username or password" });
       }
-      req.session!.userId = user.id;
+      req.session!.userId! = user.id;
       res.redirect("/app");
     } catch (error) {
       console.error("Login error:", error);
@@ -113,7 +113,7 @@ export async function registerRoutes(
         email: email || null,
         passwordHash,
       });
-      req.session!.userId = user.id;
+      req.session!.userId! = user.id;
       res.redirect("/app");
     } catch (error) {
       console.error("Signup error:", error);
@@ -133,13 +133,14 @@ export async function registerRoutes(
   app.get("/app", requireSubscription, async (req, res) => {
     try {
       const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
-      const workouts = await storage.getWorkoutSetsForDate(date);
-      const goals = await storage.getAllGoals();
+      const workouts = await storage.getWorkoutSetsForDate(req.session!.userId!, date);
+      const goals = await storage.getAllGoals(req.session!.userId!);
+
       res.render("workout-log", {
         title: "Workout Log - Lift-Log",
-        date,
         workouts,
         goals,
+        date,
         user: req.user
       });
     } catch (error) {
@@ -150,8 +151,9 @@ export async function registerRoutes(
 
   app.get("/dashboard", requireSubscription, async (req, res) => {
     try {
-      const allWorkouts = await storage.getAllWorkoutSets();
-      const goals = await storage.getAllGoals();
+      const allWorkouts = await storage.getAllWorkoutSets(req.session!.userId!);
+      const goals = await storage.getAllGoals(req.session!.userId!);
+
       const now = new Date();
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
@@ -184,7 +186,7 @@ export async function registerRoutes(
 
   app.get("/goals", requireSubscription, async (req, res) => {
     try {
-      const goals = await storage.getAllGoals();
+      const goals = await storage.getAllGoals(req.session!.userId!);
       res.render("goals", {
         title: "Goals - Lift-Log",
         goals,
@@ -201,13 +203,13 @@ export async function registerRoutes(
   // ============================================================================
   app.get("/admin", requireAuth, async (req, res) => {
     try {
-      const currentUser = await storage.getUser(req.session!.userId);
+      const currentUser = await storage.getUser(req.session!.userId!);
       if (!currentUser?.isAdmin) {
         return res.status(403).send("Access denied. Admin privileges required.");
       }
       const users = await storage.getAllUsers();
-      const allWorkouts = await storage.getAllWorkoutSets();
-      const allGoals = await storage.getAllGoals();
+      const allWorkouts = await storage.getAllWorkoutSetsAdmin();
+      const allGoals = await storage.getAllGoalsAdmin();
       const now = new Date();
       const startOfDay = new Date(now);
       startOfDay.setHours(0, 0, 0, 0);
@@ -237,12 +239,12 @@ export async function registerRoutes(
 
   app.delete("/admin/users/:id", requireAuth, async (req, res) => {
     try {
-      const currentUser = await storage.getUser(req.session!.userId);
+      const currentUser = await storage.getUser(req.session!.userId!);
       if (!currentUser?.isAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
       const userId = req.params.id;
-      if (userId === req.session!.userId) {
+      if (userId === req.session!.userId!) {
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
       await storage.deleteUser(userId);
@@ -257,7 +259,7 @@ export async function registerRoutes(
   // BILLING ROUTES
   // ============================================================================
   app.get("/billing", requireAuth, async (req, res) => {
-    const user = await storage.getUser(req.session!.userId);
+    const user = await storage.getUser(req.session!.userId!);
     if (!user) return res.redirect("/login");
     const status = getSubscriptionStatus(user);
     const expired = req.query.expired === "true";
@@ -278,7 +280,7 @@ export async function registerRoutes(
 
   app.post("/billing/checkout", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.session!.userId);
+      const user = await storage.getUser(req.session!.userId!);
       if (!user) return res.redirect("/login");
       const interval = req.body.interval;
       const priceId = interval === "monthly" ? MONTHLY_PRICE_ID : ANNUAL_PRICE_ID;
@@ -309,7 +311,7 @@ export async function registerRoutes(
 
   app.post("/billing/cancel", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.session!.userId);
+      const user = await storage.getUser(req.session!.userId!);
       if (!user || !user.stripeSubscriptionId) return res.redirect("/billing");
       await stripe.subscriptions.update(user.stripeSubscriptionId, {
         cancel_at_period_end: true,
@@ -345,7 +347,7 @@ export async function registerRoutes(
           const interval = session.metadata?.interval;
           if (!userId) break;
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
-          await storage.updateUserSubscription(userId, {
+          await storage.updateUserSubscription(userId!, {
             subscriptionStatus: "active",
             subscriptionInterval: interval,
             stripeCustomerId: session.customer,
@@ -359,7 +361,7 @@ export async function registerRoutes(
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
           const userId = (subscription as any).metadata?.userId;
           if (!userId) break;
-          await storage.updateUserSubscription(userId, {
+          await storage.updateUserSubscription(userId!, {
             subscriptionStatus: "active",
             currentPeriodEndsAt: new Date((subscription as any).current_period_end * 1000),
           });
@@ -369,7 +371,7 @@ export async function registerRoutes(
           const subscription = event.data.object as any;
           const userId = subscription.metadata?.userId;
           if (!userId) break;
-          await storage.updateUserSubscription(userId, {
+          await storage.updateUserSubscription(userId!, {
             subscriptionStatus: "expired",
           });
           break;
@@ -385,10 +387,10 @@ export async function registerRoutes(
   // ============================================================================
   // API ROUTES
   // ============================================================================
-  app.get("/api/workout-sets", async (req, res) => {
+  app.get("/api/workout-sets", requireAuth, async (req, res) => {
     try {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
-      const sets = await storage.getWorkoutSetsForDate(date);
+      const sets = await storage.getWorkoutSetsForDate(req.session!.userId!, date);
       res.json(sets);
     } catch (error) {
       console.error("Error fetching workout sets:", error);
@@ -396,9 +398,9 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/workout-sets-all", async (req, res) => {
+  app.get("/api/workout-sets-all", requireAuth, async (req, res) => {
     try {
-      const sets = await storage.getAllWorkoutSets();
+      const sets = await storage.getAllWorkoutSets(req.session!.userId!);
       res.json(sets);
     } catch (error) {
       console.error("Error fetching all workout sets:", error);
@@ -406,9 +408,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/workout-sets", async (req, res) => {
+  app.post("/api/workout-sets", requireAuth, async (req, res) => {
     try {
-      const result = insertWorkoutSetSchema.safeParse(req.body);
+      const result = insertWorkoutSetSchema.safeParse({
+        ...req.body,
+        userId: req.session!.userId!,
+      });
       if (!result.success) {
         return res.status(400).send(
           `<div class="text-red-600 p-4">${fromError(result.error).toString()}</div>`
@@ -428,7 +433,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/workout-sets/:id", async (req, res) => {
+  app.put("/api/workout-sets/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
@@ -438,7 +443,7 @@ export async function registerRoutes(
       if (!result.success) {
         return res.status(400).json({ message: fromError(result.error).toString() });
       }
-      const workoutSet = await storage.updateWorkoutSet(id, result.data);
+      const workoutSet = await storage.updateWorkoutSet(req.session!.userId!, id, result.data);
       if (!workoutSet) {
         return res.status(404).json({ message: "Workout set not found" });
       }
@@ -449,13 +454,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/workout-sets/:id", async (req, res) => {
+  app.delete("/api/workout-sets/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid ID" });
       }
-      await storage.deleteWorkoutSet(id);
+      await storage.deleteWorkoutSet(req.session!.userId!, id);
       res.status(200).send("");
     } catch (error) {
       console.error("Error deleting workout set:", error);
@@ -463,9 +468,9 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/goals", async (req, res) => {
+  app.get("/api/goals", requireAuth, async (req, res) => {
     try {
-      const goals = await storage.getAllGoals();
+      const goals = await storage.getAllGoals(req.session!.userId!);
       res.json(goals);
     } catch (error) {
       console.error("Error fetching goals:", error);
@@ -473,9 +478,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/goals", async (req, res) => {
+  app.post("/api/goals", requireAuth, async (req, res) => {
     try {
-      const result = insertGoalSchema.safeParse(req.body);
+      const result = insertGoalSchema.safeParse({
+        ...req.body,
+        userId: req.session!.userId!,
+      });
       if (!result.success) {
         return res.status(400).send(
           `<div class="text-red-600 p-4">${fromError(result.error).toString()}</div>`
@@ -495,13 +503,13 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/goals/:exercise", async (req, res) => {
+  app.patch("/api/goals/:exercise", requireAuth, async (req, res) => {
     try {
       const result = updateGoalSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ message: fromError(result.error).toString() });
       }
-      const goal = await storage.updateGoal(decodeURIComponent(req.params.exercise), result.data);
+      const goal = await storage.updateGoal(req.session!.userId!, decodeURIComponent(req.params.exercise), result.data);
       if (!goal) {
         return res.status(404).json({ message: "Goal not found" });
       }
@@ -512,13 +520,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/goals/:id", async (req, res) => {
+  app.delete("/api/goals/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid ID" });
       }
-      await storage.deleteGoal(id);
+      await storage.deleteGoal(req.session!.userId!, id);
       res.status(200).send("");
     } catch (error) {
       console.error("Error deleting goal:", error);
