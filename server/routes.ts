@@ -108,10 +108,14 @@ export async function registerRoutes(
         }
       }
       const passwordHash = await hashPassword(password);
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 30);
       const user = await storage.createUser({
         username,
         email: email || null,
         passwordHash,
+        subscriptionStatus: "trial",
+        trialEndsAt,
       });
       req.session!.userId! = user.id;
       res.redirect("/app");
