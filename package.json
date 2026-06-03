@@ -13,7 +13,8 @@
     "db:init": "tsx init-db.ts",
     "db:migrate": "tsx migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx seed.ts"
+    "db:seed": "tsx seed.ts",
+    "db:migrate:prod": "tsx scripts/migrate-add-user-id.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
