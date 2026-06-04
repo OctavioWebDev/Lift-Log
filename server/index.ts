@@ -1,6 +1,7 @@
 console.log("========== SERVER STARTING ==========");
 import express, { type Request, Response, NextFunction } from "express";
-import session from "express-session";  // ← Add this import
+import session from "express-session";
+import MemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
 import { createServer } from "http";
 import path from "path";
@@ -39,15 +40,19 @@ app.use(express.urlencoded({ extended: false }));
 // ============================================================================
 // SESSION CONFIGURATION - Add this AFTER body parsing
 // ============================================================================
-app.set('trust proxy', 1); // Trust nginx proxy
+const SessionStore = MemoryStore(session);
+const TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+app.set('trust proxy', 1);
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
   resave: false,
   saveUninitialized: false,
+  store: new SessionStore({ checkPeriod: TTL }),
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: TTL,
   }
 }));
 
