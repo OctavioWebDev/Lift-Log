@@ -5,8 +5,8 @@ import { storage } from "./storage";
 import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, isValidPassword, isValidUsername } from "./auth";
-import { stripe, MONTHLY_PRICE_ID, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
-import { requireSubscription, checkTrial } from "./middleware/subscription";
+import { stripe, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
+import { requireSubscription } from "./middleware/subscription";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -17,7 +17,6 @@ export async function registerRoutes(
   // AUTHENTICATION MIDDLEWARE
   // ============================================================================
   app.use(attachUser);
-  app.use(checkTrial);
 
   // ============================================================================
   // PUBLIC LANDING PAGE
@@ -111,17 +110,14 @@ export async function registerRoutes(
         }
       }
       const passwordHash = await hashPassword(password);
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 30);
       const user = await storage.createUser({
         username,
         email: email || null,
         passwordHash,
-        subscriptionStatus: "trial",
-        trialEndsAt,
+        subscriptionStatus: "inactive",
       });
       req.session!.userId! = user.id;
-      res.redirect("/app");
+      res.redirect("/billing");
     } catch (error) {
       console.error("Signup error:", error);
       res.render("signup", { error: "An error occurred. Please try again." });
@@ -269,19 +265,12 @@ export async function registerRoutes(
     const user = await storage.getUser(req.session!.userId!);
     if (!user) return res.redirect("/login");
     const status = getSubscriptionStatus(user);
-    const expired = req.query.expired === "true";
-    let trialDaysLeft = 0;
-    if (user.trialEndsAt) {
-      const diff = new Date(user.trialEndsAt).getTime() - Date.now();
-      trialDaysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-    }
     res.render("billing", {
       title: "Billing - Lift-Log",
-      user: req.user,
+      user,
       status,
-      expired,
-      trialDaysLeft,
       periodEndsAt: user.currentPeriodEndsAt,
+      error: req.query.error === "true",
     });
   });
 
@@ -289,18 +278,15 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session!.userId!);
       if (!user) return res.redirect("/login");
-      const interval = req.body.interval;
-      const priceId = interval === "monthly" ? MONTHLY_PRICE_ID : ANNUAL_PRICE_ID;
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         payment_method_types: ["card"],
-        line_items: [{ price: priceId, quantity: 1 }],
+        line_items: [{ price: ANNUAL_PRICE_ID, quantity: 1 }],
         success_url: `${req.protocol}://${req.get("host")}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.protocol}://${req.get("host")}/billing`,
-        metadata: { userId: user.id, interval },
-        subscription_data: {
-          metadata: { userId: user.id, interval },
-        },
+        customer_email: user.email ?? undefined,
+        metadata: { userId: user.id },
+        subscription_data: { metadata: { userId: user.id } },
       });
       res.redirect(session.url!);
     } catch (error) {
@@ -351,12 +337,11 @@ export async function registerRoutes(
         case "checkout.session.completed": {
           const session = event.data.object as any;
           const userId = session.metadata?.userId;
-          const interval = session.metadata?.interval;
           if (!userId) break;
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
-          await storage.updateUserSubscription(userId!, {
+          await storage.updateUserSubscription(userId, {
             subscriptionStatus: "active",
-            subscriptionInterval: interval,
+            subscriptionInterval: "annual",
             stripeCustomerId: session.customer,
             stripeSubscriptionId: session.subscription,
             currentPeriodEndsAt: new Date((subscription as any).current_period_end * 1000),
