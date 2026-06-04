@@ -7,6 +7,7 @@ import { fromError } from "zod-validation-error";
 import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, isValidPassword, isValidUsername } from "./auth";
 import { stripe, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
 import { requireSubscription } from "./middleware/subscription";
+import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -144,7 +145,9 @@ export async function registerRoutes(
         workouts,
         goals,
         date,
-        user: req.user
+        user: req.user,
+        exercises: ALL_EXERCISES,
+        exerciseGroups: EXERCISES,
       });
     } catch (error) {
       console.error("Error rendering workout log:", error);

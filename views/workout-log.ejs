@@ -57,11 +57,28 @@
         hx-on::after-request="this.reset()" class="space-y-3 sm:space-y-4">
         <input type="hidden" name="date" id="form-date" value="<%= date %>">
 
-        <!-- Exercise - Full Width on Mobile -->
-        <div>
+        <!-- Exercise - Searchable Select -->
+        <div class="relative">
           <label class="block text-sm font-medium text-brand-700 mb-1">Exercise</label>
-          <input type="text" name="exercise" required placeholder="Squat"
+          <input type="text" id="exercise-search" placeholder="Search exercises..."
+            autocomplete="off"
             class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <input type="hidden" name="exercise" id="exercise-value" required>
+          <div id="exercise-dropdown"
+            class="hidden absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
+            <% let lastGroup = ''; %>
+            <% exercises.forEach(function(ex) { %>
+              <%
+                let group = '';
+                Object.entries(exerciseGroups).forEach(([g, list]) => {
+                  if (list.includes(ex)) group = g;
+                });
+                if (group !== lastGroup) { lastGroup = group; %>
+              <div class="px-3 py-1.5 text-xs font-bold text-brand-500 uppercase tracking-wide bg-gray-50 sticky top-0"><%= group %></div>
+              <% } %>
+              <div class="exercise-option px-3 py-2 cursor-pointer hover:bg-brand-50 text-sm text-brand-900" data-value="<%= ex %>"><%= ex %></div>
+            <% }); %>
+          </div>
         </div>
 
         <!-- Sets & Reps - 2 Columns -->
@@ -225,9 +242,17 @@
       <form id="edit-workout-form" class="space-y-3">
         <input type="hidden" id="edit-workout-id">
 
-        <div>
+        <div class="relative">
           <label class="block text-sm font-medium text-brand-700 mb-1">Exercise</label>
-          <input type="text" id="edit-exercise" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
+          <input type="text" id="edit-exercise-search" autocomplete="off"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2.5" required>
+          <input type="hidden" id="edit-exercise">
+          <div id="edit-exercise-dropdown"
+            class="hidden absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+            <% exercises.forEach(function(ex) { %>
+              <div class="edit-exercise-option px-3 py-2 cursor-pointer hover:bg-brand-50 text-sm text-brand-900" data-value="<%= ex %>"><%= ex %></div>
+            <% }); %>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -299,8 +324,61 @@
       navigateToDate(new Date().toISOString().split('T')[0]);
     }
 
+    // ── Exercise search (log form) ──────────────────────────────────────────
+    function setupExerciseSearch(searchId, valueId, dropdownId, optionClass) {
+      const search = document.getElementById(searchId);
+      const value = document.getElementById(valueId);
+      const dropdown = document.getElementById(dropdownId);
+      const options = dropdown.querySelectorAll('.' + optionClass);
+
+      search.addEventListener('input', () => {
+        const q = search.value.toLowerCase();
+        let anyVisible = false;
+        options.forEach(opt => {
+          const match = opt.dataset.value.toLowerCase().includes(q);
+          opt.style.display = match ? '' : 'none';
+          if (match) anyVisible = true;
+        });
+        // show/hide group headers
+        dropdown.querySelectorAll('.sticky').forEach(header => {
+          let next = header.nextElementSibling;
+          let groupVisible = false;
+          while (next && !next.classList.contains('sticky')) {
+            if (next.style.display !== 'none') groupVisible = true;
+            next = next.nextElementSibling;
+          }
+          header.style.display = groupVisible ? '' : 'none';
+        });
+        dropdown.classList.toggle('hidden', !q || !anyVisible);
+      });
+
+      search.addEventListener('focus', () => {
+        if (search.value) search.dispatchEvent(new Event('input'));
+      });
+
+      options.forEach(opt => {
+        opt.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          search.value = opt.dataset.value;
+          value.value = opt.dataset.value;
+          dropdown.classList.add('hidden');
+        });
+      });
+
+      search.addEventListener('blur', () => {
+        setTimeout(() => dropdown.classList.add('hidden'), 150);
+        // if typed value exactly matches an exercise, accept it
+        const match = [...options].find(o => o.dataset.value.toLowerCase() === search.value.toLowerCase());
+        if (match) value.value = match.dataset.value;
+      });
+    }
+
+    setupExerciseSearch('exercise-search', 'exercise-value', 'exercise-dropdown', 'exercise-option');
+    setupExerciseSearch('edit-exercise-search', 'edit-exercise', 'edit-exercise-dropdown', 'edit-exercise-option');
+
     function editWorkout(id, exercise, sets, weight, reps, rpe) {
       document.getElementById('edit-workout-id').value = id;
+      document.getElementById('edit-exercise-search').value = exercise;
       document.getElementById('edit-exercise').value = exercise;
       document.getElementById('edit-sets').value = sets;
       document.getElementById('edit-weight').value = weight;
