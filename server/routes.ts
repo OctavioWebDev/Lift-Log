@@ -77,6 +77,9 @@ export async function registerRoutes(
   app.post("/signup", async (req, res) => {
     try {
       const { username, email, password, confirmPassword } = req.body;
+      if (!username || !password || !confirmPassword) {
+        return res.render("signup", { error: "Username and password are required" });
+      }
       const allUsers = await storage.getAllUsers();
       if (allUsers.length >= 100) {
         return res.render("signup", {
