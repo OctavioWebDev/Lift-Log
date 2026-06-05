@@ -66,17 +66,11 @@
           <input type="hidden" name="exercise" id="exercise-value" required>
           <div id="exercise-dropdown"
             class="hidden absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
-            <% let lastGroup = ''; %>
-            <% exercises.forEach(function(ex) { %>
-              <%
-                let group = '';
-                Object.entries(exerciseGroups).forEach(([g, list]) => {
-                  if (list.includes(ex)) group = g;
-                });
-                if (group !== lastGroup) { lastGroup = group; %>
-              <div class="px-3 py-1.5 text-xs font-bold text-brand-500 uppercase tracking-wide bg-gray-50 sticky top-0"><%= group %></div>
-              <% } %>
-              <div class="exercise-option px-3 py-2 cursor-pointer hover:bg-brand-50 text-sm text-brand-900" data-value="<%= ex %>"><%= ex %></div>
+            <% Object.entries(exerciseGroups).forEach(function([group, list]) { %>
+              <div class="exercise-group-header px-3 py-1.5 text-xs font-bold text-brand-500 uppercase tracking-wide bg-gray-50"><%= group %></div>
+              <% list.forEach(function(ex) { %>
+                <div class="exercise-option px-3 py-2 cursor-pointer hover:bg-brand-50 text-sm text-brand-900" data-value="<%= ex %>"><%= ex %></div>
+              <% }); %>
             <% }); %>
           </div>
         </div>
@@ -330,30 +324,38 @@
       const value = document.getElementById(valueId);
       const dropdown = document.getElementById(dropdownId);
       const options = dropdown.querySelectorAll('.' + optionClass);
+      const headers = dropdown.querySelectorAll('.exercise-group-header');
 
-      search.addEventListener('input', () => {
-        const q = search.value.toLowerCase();
-        let anyVisible = false;
-        options.forEach(opt => {
-          const match = opt.dataset.value.toLowerCase().includes(q);
-          opt.style.display = match ? '' : 'none';
-          if (match) anyVisible = true;
-        });
-        // show/hide group headers
-        dropdown.querySelectorAll('.sticky').forEach(header => {
-          let next = header.nextElementSibling;
-          let groupVisible = false;
-          while (next && !next.classList.contains('sticky')) {
-            if (next.style.display !== 'none') groupVisible = true;
-            next = next.nextElementSibling;
-          }
-          header.style.display = groupVisible ? '' : 'none';
-        });
-        dropdown.classList.toggle('hidden', !q || !anyVisible);
+      // Show full list on focus
+      search.addEventListener('focus', () => {
+        dropdown.classList.remove('hidden');
+        options.forEach(o => o.style.display = '');
+        headers.forEach(h => h.style.display = '');
       });
 
-      search.addEventListener('focus', () => {
-        if (search.value) search.dispatchEvent(new Event('input'));
+      search.addEventListener('input', () => {
+        const q = search.value.toLowerCase().trim();
+        if (!q) {
+          options.forEach(o => o.style.display = '');
+          headers.forEach(h => h.style.display = '');
+          dropdown.classList.remove('hidden');
+          return;
+        }
+        // Filter options
+        options.forEach(opt => {
+          opt.style.display = opt.dataset.value.toLowerCase().includes(q) ? '' : 'none';
+        });
+        // Hide headers with no visible options
+        headers.forEach(header => {
+          let next = header.nextElementSibling;
+          let hasVisible = false;
+          while (next && !next.classList.contains('exercise-group-header')) {
+            if (next.style.display !== 'none') hasVisible = true;
+            next = next.nextElementSibling;
+          }
+          header.style.display = hasVisible ? '' : 'none';
+        });
+        dropdown.classList.remove('hidden');
       });
 
       options.forEach(opt => {
@@ -366,10 +368,7 @@
       });
 
       search.addEventListener('blur', () => {
-        setTimeout(() => dropdown.classList.add('hidden'), 150);
-        // if typed value exactly matches an exercise, accept it
-        const match = [...options].find(o => o.dataset.value.toLowerCase() === search.value.toLowerCase());
-        if (match) value.value = match.dataset.value;
+        setTimeout(() => dropdown.classList.add('hidden'), 200);
       });
     }
 
