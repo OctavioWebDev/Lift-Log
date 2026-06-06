@@ -566,8 +566,10 @@ export async function registerRoutes(
     const q = (req.query.q as string || "").trim();
     if (!q) return res.json([]);
     try {
-      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_size,serving_quantity`;
-      const response = await fetch(url);
+      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,brands,nutriments,serving_size,serving_quantity`;
+      const response = await fetch(url, {
+        headers: { "User-Agent": "LiftLog/1.0 (chirholifts.com; contact@chirholifts.com)" },
+      });
       const data = await response.json() as any;
       const results = (data.products || [])
         .filter((p: any) => p.product_name && p.nutriments)
