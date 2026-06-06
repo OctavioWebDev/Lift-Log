@@ -105,3 +105,53 @@ export const updateGoalSchema = createInsertSchema(goals, {
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type UpdateGoal = z.infer<typeof updateGoalSchema>;
 export type Goal = typeof goals.$inferSelect;
+
+// ============================================================================
+// NUTRITION LOGS TABLE
+// ============================================================================
+export const nutritionLogs = sqliteTable("nutrition_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  date: integer("date", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  foodName: text("food_name").notNull(),
+  brandName: text("brand_name"),
+  servingSize: real("serving_size").notNull().default(1),
+  servingUnit: text("serving_unit").notNull().default("serving"),
+  calories: real("calories").notNull().default(0),
+  protein: real("protein").notNull().default(0),
+  carbs: real("carbs").notNull().default(0),
+  fat: real("fat").notNull().default(0),
+});
+
+export const insertNutritionLogSchema = createInsertSchema(nutritionLogs, {
+  servingSize: z.coerce.number().positive(),
+  calories: z.coerce.number().nonnegative(),
+  protein: z.coerce.number().nonnegative(),
+  carbs: z.coerce.number().nonnegative(),
+  fat: z.coerce.number().nonnegative(),
+}).omit({ id: true });
+
+export type InsertNutritionLog = z.infer<typeof insertNutritionLogSchema>;
+export type NutritionLog = typeof nutritionLogs.$inferSelect;
+
+// ============================================================================
+// NUTRITION GOALS TABLE
+// ============================================================================
+export const nutritionGoals = sqliteTable("nutrition_goals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().unique().references(() => users.id),
+  calories: real("calories").notNull().default(2000),
+  protein: real("protein").notNull().default(150),
+  carbs: real("carbs").notNull().default(200),
+  fat: real("fat").notNull().default(65),
+});
+
+export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals, {
+  calories: z.coerce.number().positive(),
+  protein: z.coerce.number().nonnegative(),
+  carbs: z.coerce.number().nonnegative(),
+  fat: z.coerce.number().nonnegative(),
+}).omit({ id: true });
+
+export type InsertNutritionGoal = z.infer<typeof insertNutritionGoalSchema>;
+export type NutritionGoal = typeof nutritionGoals.$inferSelect;

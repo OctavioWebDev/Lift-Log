@@ -2,7 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema } from "@shared/schema";
+import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema, insertNutritionLogSchema, insertNutritionGoalSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, isValidPassword, isValidUsername } from "./auth";
 import { stripe, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
@@ -526,6 +526,118 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting goal:", error);
       res.status(500).send(`<div class="text-red-600 p-4">Failed to delete goal</div>`);
+    }
+  });
+
+  // ============================================================================
+  // NUTRITION ROUTES
+  // ============================================================================
+
+  app.get("/nutrition", requireSubscription, async (req, res) => {
+    try {
+      const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
+      const logs = await storage.getNutritionLogsForDate(req.session!.userId!, date);
+      const goal = await storage.getNutritionGoal(req.session!.userId!);
+      const totals = logs.reduce(
+        (acc, l) => ({
+          calories: acc.calories + l.calories,
+          protein: acc.protein + l.protein,
+          carbs: acc.carbs + l.carbs,
+          fat: acc.fat + l.fat,
+        }),
+        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      );
+      res.render("nutrition", {
+        title: "Nutrition - Lift-Log",
+        user: req.user,
+        logs,
+        goal: goal || { calories: 2000, protein: 150, carbs: 200, fat: 65 },
+        totals,
+        date,
+      });
+    } catch (error) {
+      console.error("Error rendering nutrition:", error);
+      res.status(500).send("Error loading page");
+    }
+  });
+
+  // Food search proxy — Open Food Facts
+  app.get("/api/food/search", requireAuth, async (req, res) => {
+    const q = (req.query.q as string || "").trim();
+    if (!q) return res.json([]);
+    try {
+      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_size,serving_quantity`;
+      const response = await fetch(url);
+      const data = await response.json() as any;
+      const results = (data.products || [])
+        .filter((p: any) => p.product_name && p.nutriments)
+        .map((p: any) => {
+          const n = p.nutriments;
+          return {
+            name: p.product_name,
+            brand: p.brands || "",
+            servingSize: parseFloat(p.serving_quantity) || 100,
+            servingUnit: "g",
+            calories: Math.round(n["energy-kcal_serving"] || n["energy-kcal_100g"] || 0),
+            protein: Math.round((n["proteins_serving"] || n["proteins_100g"] || 0) * 10) / 10,
+            carbs: Math.round((n["carbohydrates_serving"] || n["carbohydrates_100g"] || 0) * 10) / 10,
+            fat: Math.round((n["fat_serving"] || n["fat_100g"] || 0) * 10) / 10,
+          };
+        });
+      res.json(results);
+    } catch (error) {
+      console.error("Food search error:", error);
+      res.status(500).json([]);
+    }
+  });
+
+  // Log a food entry
+  app.post("/api/nutrition", requireAuth, async (req, res) => {
+    try {
+      const result = insertNutritionLogSchema.safeParse({
+        ...req.body,
+        userId: req.session!.userId!,
+        date: new Date(req.body.date || new Date()),
+      });
+      if (!result.success) {
+        return res.status(400).json({ message: fromError(result.error).toString() });
+      }
+      const log = await storage.createNutritionLog(result.data);
+      res.status(201).json(log);
+    } catch (error) {
+      console.error("Error creating nutrition log:", error);
+      res.status(500).json({ message: "Failed to log food" });
+    }
+  });
+
+  // Delete a food entry
+  app.delete("/api/nutrition/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+      await storage.deleteNutritionLog(req.session!.userId!, id);
+      res.status(200).send("");
+    } catch (error) {
+      console.error("Error deleting nutrition log:", error);
+      res.status(500).json({ message: "Failed to delete entry" });
+    }
+  });
+
+  // Save/update daily macro goals
+  app.post("/api/nutrition/goals", requireAuth, async (req, res) => {
+    try {
+      const result = insertNutritionGoalSchema.safeParse({
+        ...req.body,
+        userId: req.session!.userId!,
+      });
+      if (!result.success) {
+        return res.status(400).json({ message: fromError(result.error).toString() });
+      }
+      const goal = await storage.upsertNutritionGoal(result.data);
+      res.json(goal);
+    } catch (error) {
+      console.error("Error saving nutrition goal:", error);
+      res.status(500).json({ message: "Failed to save goals" });
     }
   });
 

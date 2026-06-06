@@ -1,5 +1,5 @@
-import { 
-  type User, 
+import {
+  type User,
   type InsertUser,
   type WorkoutSet,
   type InsertWorkoutSet,
@@ -7,12 +7,18 @@ import {
   type Goal,
   type InsertGoal,
   type UpdateGoal,
+  type NutritionLog,
+  type InsertNutritionLog,
+  type NutritionGoal,
+  type InsertNutritionGoal,
   users,
   workoutSets,
-  goals
+  goals,
+  nutritionLogs,
+  nutritionGoals,
 } from "../shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lt } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -47,6 +53,15 @@ export interface IStorage {
   // Admin methods — no userId filter
   getAllWorkoutSetsAdmin(): Promise<WorkoutSet[]>;
   getAllGoalsAdmin(): Promise<Goal[]>;
+
+  // Nutrition log methods
+  getNutritionLogsForDate(userId: string, date: string): Promise<NutritionLog[]>;
+  createNutritionLog(log: InsertNutritionLog): Promise<NutritionLog>;
+  deleteNutritionLog(userId: string, id: number): Promise<void>;
+
+  // Nutrition goal methods
+  getNutritionGoal(userId: string): Promise<NutritionGoal | undefined>;
+  upsertNutritionGoal(goal: InsertNutritionGoal): Promise<NutritionGoal>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -193,6 +208,54 @@ export class DatabaseStorage implements IStorage {
 
   async getAllGoalsAdmin(): Promise<Goal[]> {
     return db.select().from(goals);
+  }
+
+  // ─── Nutrition Log Methods ────────────────────────────────────────────────────
+
+  async getNutritionLogsForDate(userId: string, date: string): Promise<NutritionLog[]> {
+    const start = new Date(date + "T00:00:00");
+    const end = new Date(date + "T23:59:59");
+    return db
+      .select()
+      .from(nutritionLogs)
+      .where(and(
+        eq(nutritionLogs.userId, userId),
+        gte(nutritionLogs.date, start),
+        lt(nutritionLogs.date, new Date(end.getTime() + 1000))
+      ))
+      .orderBy(nutritionLogs.date);
+  }
+
+  async createNutritionLog(log: InsertNutritionLog): Promise<NutritionLog> {
+    const [entry] = await db.insert(nutritionLogs).values(log).returning();
+    return entry;
+  }
+
+  async deleteNutritionLog(userId: string, id: number): Promise<void> {
+    await db.delete(nutritionLogs).where(
+      and(eq(nutritionLogs.id, id), eq(nutritionLogs.userId, userId))
+    );
+  }
+
+  // ─── Nutrition Goal Methods ────────────────────────────────────────────────────
+
+  async getNutritionGoal(userId: string): Promise<NutritionGoal | undefined> {
+    const [goal] = await db.select().from(nutritionGoals).where(eq(nutritionGoals.userId, userId));
+    return goal;
+  }
+
+  async upsertNutritionGoal(goal: InsertNutritionGoal): Promise<NutritionGoal> {
+    const existing = await this.getNutritionGoal(goal.userId);
+    if (existing) {
+      const [updated] = await db
+        .update(nutritionGoals)
+        .set({ calories: goal.calories, protein: goal.protein, carbs: goal.carbs, fat: goal.fat })
+        .where(eq(nutritionGoals.userId, goal.userId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(nutritionGoals).values(goal).returning();
+    return created;
   }
 
 }
