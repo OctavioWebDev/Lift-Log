@@ -561,44 +561,28 @@ export async function registerRoutes(
     }
   });
 
-  // Food search proxy — Open Food Facts
+  // Food search proxy — USDA FoodData Central
   app.get("/api/food/search", requireAuth, async (req, res) => {
     const q = (req.query.q as string || "").trim();
     if (!q) return res.json([]);
     try {
-      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=product_name,brands,nutriments,serving_size,serving_quantity`;
-      const response = await fetch(url, {
-        headers: { "User-Agent": "LiftLog/1.0 (chirholifts.com; contact@chirholifts.com)" },
-      });
+      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${process.env.USDA_API_KEY}&dataType=Branded,Foundation,SR%20Legacy&pageSize=20`;
+      const response = await fetch(url);
       const data = await response.json() as any;
-      const results = (data.products || [])
-        .filter((p: any) => p.product_name && p.nutriments)
-        .map((p: any) => {
-          const n = p.nutriments;
-          const gramsPerServing = parseFloat(p.serving_quantity) || 100;
-          // Prefer _serving nutriments; fall back to _100g scaled to this serving size
-          const scale = gramsPerServing / 100;
-          const calories = n["energy-kcal_serving"] != null
-            ? Math.round(n["energy-kcal_serving"])
-            : Math.round((n["energy-kcal_100g"] || 0) * scale);
-          const protein = n["proteins_serving"] != null
-            ? Math.round(n["proteins_serving"] * 10) / 10
-            : Math.round((n["proteins_100g"] || 0) * scale * 10) / 10;
-          const carbs = n["carbohydrates_serving"] != null
-            ? Math.round(n["carbohydrates_serving"] * 10) / 10
-            : Math.round((n["carbohydrates_100g"] || 0) * scale * 10) / 10;
-          const fat = n["fat_serving"] != null
-            ? Math.round(n["fat_serving"] * 10) / 10
-            : Math.round((n["fat_100g"] || 0) * scale * 10) / 10;
+      const results = (data.foods || [])
+        .filter((f: any) => f.description && f.foodNutrients?.length)
+        .map((f: any) => {
+          const nutrient = (name: string) =>
+            f.foodNutrients.find((n: any) => n.nutrientName === name)?.value || 0;
+          const gramsPerServing = f.servingSize || 100;
           return {
-            name: p.product_name,
-            brand: p.brands || "",
+            name: f.description,
+            brand: f.brandOwner || f.brandName || "",
             gramsPerServing,
-            // macros above are always per 1 serving
-            calories,
-            protein,
-            carbs,
-            fat,
+            calories: Math.round(nutrient("Energy")),
+            protein: Math.round(nutrient("Protein") * 10) / 10,
+            carbs: Math.round(nutrient("Carbohydrate, by difference") * 10) / 10,
+            fat: Math.round(nutrient("Total lipid (fat)") * 10) / 10,
           };
         });
       res.json(results);
