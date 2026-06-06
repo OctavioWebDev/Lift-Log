@@ -566,7 +566,7 @@ export async function registerRoutes(
     const q = (req.query.q as string || "").trim();
     if (!q) return res.json([]);
     try {
-      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${process.env.USDA_API_KEY}&dataType=Branded,Foundation,SR%20Legacy&pageSize=20`;
+      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${process.env.USDA_API_KEY}&dataType=Branded&pageSize=20`;
       const response = await fetch(url);
       const data = await response.json() as any;
       const results = (data.foods || [])
