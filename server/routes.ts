@@ -573,15 +573,30 @@ export async function registerRoutes(
         .filter((p: any) => p.product_name && p.nutriments)
         .map((p: any) => {
           const n = p.nutriments;
+          const gramsPerServing = parseFloat(p.serving_quantity) || 100;
+          // Prefer _serving nutriments; fall back to _100g scaled to this serving size
+          const scale = gramsPerServing / 100;
+          const calories = n["energy-kcal_serving"] != null
+            ? Math.round(n["energy-kcal_serving"])
+            : Math.round((n["energy-kcal_100g"] || 0) * scale);
+          const protein = n["proteins_serving"] != null
+            ? Math.round(n["proteins_serving"] * 10) / 10
+            : Math.round((n["proteins_100g"] || 0) * scale * 10) / 10;
+          const carbs = n["carbohydrates_serving"] != null
+            ? Math.round(n["carbohydrates_serving"] * 10) / 10
+            : Math.round((n["carbohydrates_100g"] || 0) * scale * 10) / 10;
+          const fat = n["fat_serving"] != null
+            ? Math.round(n["fat_serving"] * 10) / 10
+            : Math.round((n["fat_100g"] || 0) * scale * 10) / 10;
           return {
             name: p.product_name,
             brand: p.brands || "",
-            servingSize: parseFloat(p.serving_quantity) || 100,
-            servingUnit: "g",
-            calories: Math.round(n["energy-kcal_serving"] || n["energy-kcal_100g"] || 0),
-            protein: Math.round((n["proteins_serving"] || n["proteins_100g"] || 0) * 10) / 10,
-            carbs: Math.round((n["carbohydrates_serving"] || n["carbohydrates_100g"] || 0) * 10) / 10,
-            fat: Math.round((n["fat_serving"] || n["fat_100g"] || 0) * 10) / 10,
+            gramsPerServing,
+            // macros above are always per 1 serving
+            calories,
+            protein,
+            carbs,
+            fat,
           };
         });
       res.json(results);
