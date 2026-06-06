@@ -87,14 +87,12 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Serving Size</label>
-          <input type="number" id="serving-size" step="0.1" min="0.1" value="1"
+          <label class="block text-sm font-medium text-brand-700 mb-1">Number of Servings</label>
+          <input type="number" id="serving-size" step="0.5" min="0.5" value="1"
             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
-        <div>
-          <label class="block text-sm font-medium text-brand-700 mb-1">Unit</label>
-          <input type="text" id="serving-unit" readonly
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-brand-600">
+        <div class="flex flex-col justify-end">
+          <p class="text-sm text-brand-500 pb-2">1 serving = <span id="grams-per-serving">—</span>g</p>
         </div>
       </div>
 
@@ -233,7 +231,7 @@
         <div class="food-result px-4 py-3 cursor-pointer hover:bg-brand-50 border-b border-gray-50 last:border-0"
           onclick="selectFood(${i})">
           <p class="text-sm font-medium text-brand-900">${f.name}</p>
-          <p class="text-xs text-brand-500">${f.brand ? f.brand + ' · ' : ''}${f.servingSize}${f.servingUnit} · ${f.calories}kcal · P:${f.protein}g C:${f.carbs}g F:${f.fat}g</p>
+          <p class="text-xs text-brand-500">${f.brand ? f.brand + ' · ' : ''}per serving (${f.gramsPerServing}g) · ${f.calories}kcal · P:${f.protein}g C:${f.carbs}g F:${f.fat}g</p>
         </div>
       `).join('');
       // Store foods on window for selectFood
@@ -256,8 +254,8 @@
     foodSearch.value = selectedFood.name;
     document.getElementById('selected-food-name').textContent = selectedFood.name;
     document.getElementById('selected-food-brand').textContent = selectedFood.brand || '';
-    document.getElementById('serving-size').value = selectedFood.servingSize;
-    document.getElementById('serving-unit').value = selectedFood.servingUnit;
+    document.getElementById('serving-size').value = 1;
+    document.getElementById('grams-per-serving').textContent = selectedFood.gramsPerServing;
     document.getElementById('food-form').classList.remove('hidden');
     updateMacroPreview();
   }
@@ -273,27 +271,26 @@
 
   function updateMacroPreview() {
     if (!selectedFood) return;
-    const ratio = parseFloat(document.getElementById('serving-size').value) / selectedFood.servingSize;
-    document.getElementById('cal-preview').textContent = Math.round(selectedFood.calories * ratio);
-    document.getElementById('protein-preview').textContent = (selectedFood.protein * ratio).toFixed(1);
-    document.getElementById('carbs-preview').textContent = (selectedFood.carbs * ratio).toFixed(1);
-    document.getElementById('fat-preview').textContent = (selectedFood.fat * ratio).toFixed(1);
+    const servings = parseFloat(document.getElementById('serving-size').value) || 1;
+    document.getElementById('cal-preview').textContent = Math.round(selectedFood.calories * servings);
+    document.getElementById('protein-preview').textContent = (selectedFood.protein * servings).toFixed(1);
+    document.getElementById('carbs-preview').textContent = (selectedFood.carbs * servings).toFixed(1);
+    document.getElementById('fat-preview').textContent = (selectedFood.fat * servings).toFixed(1);
   }
 
   // ── Log food ──────────────────────────────────────────────────────────────
   async function logFood() {
     if (!selectedFood) return;
-    const servingSize = parseFloat(document.getElementById('serving-size').value);
-    const ratio = servingSize / selectedFood.servingSize;
+    const servings = parseFloat(document.getElementById('serving-size').value) || 1;
     const payload = {
       foodName: selectedFood.name,
       brandName: selectedFood.brand || null,
-      servingSize,
-      servingUnit: selectedFood.servingUnit,
-      calories: Math.round(selectedFood.calories * ratio * 10) / 10,
-      protein: Math.round(selectedFood.protein * ratio * 10) / 10,
-      carbs: Math.round(selectedFood.carbs * ratio * 10) / 10,
-      fat: Math.round(selectedFood.fat * ratio * 10) / 10,
+      servingSize: servings,
+      servingUnit: "serving",
+      calories: Math.round(selectedFood.calories * servings * 10) / 10,
+      protein: Math.round(selectedFood.protein * servings * 10) / 10,
+      carbs: Math.round(selectedFood.carbs * servings * 10) / 10,
+      fat: Math.round(selectedFood.fat * servings * 10) / 10,
       date: currentDate,
     };
     const res = await fetch('/api/nutrition', {
