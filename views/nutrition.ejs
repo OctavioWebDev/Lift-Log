@@ -1,0 +1,326 @@
+<%- include('partials/header') %>
+
+<div class="space-y-4">
+
+  <!-- Header + Date Nav -->
+  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+    <div class="flex items-center justify-between mb-3">
+      <h1 class="text-2xl font-bold text-brand-900">Nutrition</h1>
+      <a href="/nutrition?date=<%= new Date().toISOString().split('T')[0] %>"
+        class="text-sm text-brand-600 hover:text-brand-900 transition">Today</a>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="changeDate(-1)" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition">
+        <svg class="w-4 h-4 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <span id="date-display" class="flex-1 text-center font-medium text-brand-900 text-sm"></span>
+      <button onclick="changeDate(1)" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition">
+        <svg class="w-4 h-4 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Daily Totals vs Goals -->
+  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-brand-900">Daily Totals</h2>
+      <button onclick="document.getElementById('goals-modal').classList.remove('hidden')"
+        class="text-sm text-brand-600 hover:text-brand-900 transition">Edit Goals</button>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <% const macros = [
+        { label: 'Calories', value: totals.calories, goal: goal.calories, unit: 'kcal', color: 'brand' },
+        { label: 'Protein', value: totals.protein, goal: goal.protein, unit: 'g', color: 'blue' },
+        { label: 'Carbs', value: totals.carbs, goal: goal.carbs, unit: 'g', color: 'yellow' },
+        { label: 'Fat', value: totals.fat, goal: goal.fat, unit: 'g', color: 'red' },
+      ]; %>
+      <% macros.forEach(function(m) {
+        const pct = Math.min(Math.round((m.value / m.goal) * 100), 100);
+        const over = m.value > m.goal;
+      %>
+      <div>
+        <div class="flex justify-between text-sm mb-1">
+          <span class="font-medium text-brand-700"><%= m.label %></span>
+          <span class="<%= over ? 'text-red-600 font-semibold' : 'text-brand-500' %>">
+            <%= Math.round(m.value) %><span class="text-xs">/<%= Math.round(m.goal) %><%= m.unit %></span>
+          </span>
+        </div>
+        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full transition-all <%= over ? 'bg-red-500' : 'bg-brand-600' %>"
+            style="width: <%= pct %>%"></div>
+        </div>
+      </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <!-- Food Search + Log -->
+  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+    <h2 class="text-lg font-bold text-brand-900 mb-4">Log Food</h2>
+
+    <!-- Search -->
+    <div class="relative mb-4">
+      <input type="text" id="food-search" placeholder="Search foods (e.g. chicken breast, oats...)"
+        autocomplete="off"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500 pr-10">
+      <div id="search-spinner" class="hidden absolute right-3 top-3">
+        <svg class="animate-spin w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+        </svg>
+      </div>
+      <div id="food-results"
+        class="hidden absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
+      </div>
+    </div>
+
+    <!-- Selected food form (hidden until food picked) -->
+    <div id="food-form" class="hidden space-y-3">
+      <div class="bg-brand-50 border border-brand-200 rounded-lg p-3">
+        <p class="font-semibold text-brand-900" id="selected-food-name"></p>
+        <p class="text-sm text-brand-600" id="selected-food-brand"></p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-1">Serving Size</label>
+          <input type="number" id="serving-size" step="0.1" min="0.1" value="1"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-1">Unit</label>
+          <input type="text" id="serving-unit" readonly
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-brand-600">
+        </div>
+      </div>
+
+      <!-- Macro preview -->
+      <div class="grid grid-cols-4 gap-2 text-center">
+        <% [['cal-preview','Calories','kcal'],['protein-preview','Protein','g'],['carbs-preview','Carbs','g'],['fat-preview','Fat','g']].forEach(function(m) { %>
+        <div class="bg-gray-50 rounded-lg p-2">
+          <p class="text-lg font-bold text-brand-900" id="<%= m[0] %>">0</p>
+          <p class="text-xs text-brand-500"><%= m[1] %></p>
+        </div>
+        <% }); %>
+      </div>
+
+      <button onclick="logFood()"
+        class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-3 rounded-lg transition">
+        Add to Log
+      </button>
+      <button onclick="clearFood()" class="w-full text-sm text-brand-500 hover:text-brand-700 transition py-1">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- Today's Log -->
+  <div class="bg-white rounded-lg border border-gray-200">
+    <div class="px-4 sm:px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold text-brand-900">Today's Log</h2>
+    </div>
+    <div id="nutrition-log-list">
+      <% if (logs.length === 0) { %>
+      <div class="px-6 py-8 text-center text-brand-500">
+        <p class="text-sm">No food logged yet. Search above to get started.</p>
+      </div>
+      <% } else { %>
+        <% logs.forEach(function(log) { %>
+        <div class="px-4 sm:px-6 py-3 border-b border-gray-50 flex items-center justify-between" id="log-<%= log.id %>">
+          <div>
+            <p class="font-medium text-brand-900 text-sm"><%= log.foodName %></p>
+            <p class="text-xs text-brand-500">
+              <%= log.servingSize %> <%= log.servingUnit %> &nbsp;·&nbsp;
+              <%= Math.round(log.calories) %> kcal &nbsp;·&nbsp;
+              P: <%= Math.round(log.protein) %>g &nbsp;·&nbsp;
+              C: <%= Math.round(log.carbs) %>g &nbsp;·&nbsp;
+              F: <%= Math.round(log.fat) %>g
+            </p>
+          </div>
+          <button
+            hx-delete="/api/nutrition/<%= log.id %>"
+            hx-target="#log-<%= log.id %>"
+            hx-swap="outerHTML swap:0.3s"
+            hx-confirm="Remove this entry?"
+            class="text-brand-400 hover:text-red-500 transition ml-3">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+        </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Goals Modal -->
+<div id="goals-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+    <h3 class="text-xl font-bold text-brand-900 mb-4">Daily Macro Goals</h3>
+    <div class="space-y-3">
+      <% [['calories','Calories (kcal)', goal.calories],['protein','Protein (g)', goal.protein],['carbs','Carbs (g)', goal.carbs],['fat','Fat (g)', goal.fat]].forEach(function(f) { %>
+      <div>
+        <label class="block text-sm font-medium text-brand-700 mb-1"><%= f[1] %></label>
+        <input type="number" id="goal-<%= f[0] %>" value="<%= Math.round(f[2]) %>" min="0"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+      </div>
+      <% }); %>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button onclick="saveGoals()"
+        class="flex-1 bg-brand-900 hover:bg-brand-800 text-white font-semibold py-2.5 rounded-lg transition">
+        Save
+      </button>
+      <button onclick="document.getElementById('goals-modal').classList.add('hidden')"
+        class="flex-1 bg-gray-100 hover:bg-gray-200 text-brand-900 font-medium py-2.5 rounded-lg transition">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const currentDate = '<%= date %>';
+  let selectedFood = null;
+  let searchTimer = null;
+
+  // ── Date nav ──────────────────────────────────────────────────────────────
+  function updateDateDisplay() {
+    const d = new Date(currentDate + 'T00:00:00');
+    document.getElementById('date-display').textContent = d.toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    });
+  }
+  updateDateDisplay();
+
+  function changeDate(days) {
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    window.location.href = `/nutrition?date=${d.toISOString().split('T')[0]}`;
+  }
+
+  // ── Food search ──────────────────────────────────────────────────────────
+  const foodSearch = document.getElementById('food-search');
+  const foodResults = document.getElementById('food-results');
+  const spinner = document.getElementById('search-spinner');
+
+  foodSearch.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = foodSearch.value.trim();
+    if (q.length < 2) { foodResults.classList.add('hidden'); return; }
+    searchTimer = setTimeout(() => searchFood(q), 500);
+  });
+
+  async function searchFood(q) {
+    spinner.classList.remove('hidden');
+    foodResults.classList.add('hidden');
+    try {
+      const res = await fetch(`/api/food/search?q=${encodeURIComponent(q)}`);
+      const foods = await res.json();
+      spinner.classList.add('hidden');
+      if (!foods.length) {
+        foodResults.innerHTML = '<div class="px-4 py-3 text-sm text-brand-500">No results found. Try a different search.</div>';
+        foodResults.classList.remove('hidden');
+        return;
+      }
+      foodResults.innerHTML = foods.map((f, i) => `
+        <div class="food-result px-4 py-3 cursor-pointer hover:bg-brand-50 border-b border-gray-50 last:border-0"
+          onclick="selectFood(${i})">
+          <p class="text-sm font-medium text-brand-900">${f.name}</p>
+          <p class="text-xs text-brand-500">${f.brand ? f.brand + ' · ' : ''}${f.servingSize}${f.servingUnit} · ${f.calories}kcal · P:${f.protein}g C:${f.carbs}g F:${f.fat}g</p>
+        </div>
+      `).join('');
+      // Store foods on window for selectFood
+      window._foodResults = foods;
+      foodResults.classList.remove('hidden');
+    } catch(e) {
+      spinner.classList.add('hidden');
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!foodResults.contains(e.target) && e.target !== foodSearch) {
+      foodResults.classList.add('hidden');
+    }
+  });
+
+  function selectFood(i) {
+    selectedFood = window._foodResults[i];
+    foodResults.classList.add('hidden');
+    foodSearch.value = selectedFood.name;
+    document.getElementById('selected-food-name').textContent = selectedFood.name;
+    document.getElementById('selected-food-brand').textContent = selectedFood.brand || '';
+    document.getElementById('serving-size').value = selectedFood.servingSize;
+    document.getElementById('serving-unit').value = selectedFood.servingUnit;
+    document.getElementById('food-form').classList.remove('hidden');
+    updateMacroPreview();
+  }
+
+  function clearFood() {
+    selectedFood = null;
+    foodSearch.value = '';
+    document.getElementById('food-form').classList.add('hidden');
+  }
+
+  // ── Portion recalculation ─────────────────────────────────────────────────
+  document.getElementById('serving-size').addEventListener('input', updateMacroPreview);
+
+  function updateMacroPreview() {
+    if (!selectedFood) return;
+    const ratio = parseFloat(document.getElementById('serving-size').value) / selectedFood.servingSize;
+    document.getElementById('cal-preview').textContent = Math.round(selectedFood.calories * ratio);
+    document.getElementById('protein-preview').textContent = (selectedFood.protein * ratio).toFixed(1);
+    document.getElementById('carbs-preview').textContent = (selectedFood.carbs * ratio).toFixed(1);
+    document.getElementById('fat-preview').textContent = (selectedFood.fat * ratio).toFixed(1);
+  }
+
+  // ── Log food ──────────────────────────────────────────────────────────────
+  async function logFood() {
+    if (!selectedFood) return;
+    const servingSize = parseFloat(document.getElementById('serving-size').value);
+    const ratio = servingSize / selectedFood.servingSize;
+    const payload = {
+      foodName: selectedFood.name,
+      brandName: selectedFood.brand || null,
+      servingSize,
+      servingUnit: selectedFood.servingUnit,
+      calories: Math.round(selectedFood.calories * ratio * 10) / 10,
+      protein: Math.round(selectedFood.protein * ratio * 10) / 10,
+      carbs: Math.round(selectedFood.carbs * ratio * 10) / 10,
+      fat: Math.round(selectedFood.fat * ratio * 10) / 10,
+      date: currentDate,
+    };
+    const res = await fetch('/api/nutrition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      window.location.reload();
+    }
+  }
+
+  // ── Goals ─────────────────────────────────────────────────────────────────
+  async function saveGoals() {
+    const payload = {
+      calories: parseFloat(document.getElementById('goal-calories').value),
+      protein: parseFloat(document.getElementById('goal-protein').value),
+      carbs: parseFloat(document.getElementById('goal-carbs').value),
+      fat: parseFloat(document.getElementById('goal-fat').value),
+    };
+    const res = await fetch('/api/nutrition/goals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) window.location.reload();
+  }
+</script>
+
+<%- include('partials/footer') %>
