@@ -321,15 +321,19 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/billing/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  app.post("/billing/webhook", async (req, res) => {
     const sig = req.headers["stripe-signature"] as string;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!webhookSecret) {
       return res.status(400).send("Webhook secret not configured");
     }
+    const rawBody = (req as any).rawBody;
+    if (!rawBody) {
+      return res.status(400).send("Missing raw body");
+    }
     let event;
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } catch (err) {
       console.error("Webhook error:", err);
       return res.status(400).send("Webhook signature verification failed");
