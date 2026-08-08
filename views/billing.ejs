@@ -3,35 +3,20 @@
 <div class="max-w-lg mx-auto space-y-6">
 
   <% if (status === 'active') { %>
-  <!-- Active subscription -->
+  <!-- Active — lifetime access -->
   <div class="bg-white rounded-lg border border-gray-200 p-6">
-    <h1 class="text-2xl font-bold text-brand-900 mb-1">Subscription</h1>
+    <h1 class="text-2xl font-bold text-brand-900 mb-1">Your Access</h1>
     <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
-      <p class="text-green-700 font-medium">
-        Your subscription is active.
-        <% if (periodEndsAt) { %>
-          Renews on <%= new Date(periodEndsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) %>.
-        <% } %>
-      </p>
+      <p class="text-green-700 font-medium">✓ You have lifetime access to Lift-Log.</p>
     </div>
-
-    <% if (user.stripeSubscriptionId) { %>
-    <div class="mt-6">
-      <form action="/billing/cancel" method="POST">
-        <button type="submit" onclick="return confirm('Are you sure you want to cancel? You will keep access until the end of your billing period.')"
-          class="px-6 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-sm">
-          Cancel Subscription
-        </button>
-      </form>
-    </div>
-    <% } %>
+    <p class="text-sm text-brand-500 mt-4">Thank you for your support. Your one-time purchase gives you permanent access to all current features and future updates.</p>
   </div>
 
   <% } else { %>
   <!-- Paywall -->
   <div class="bg-white rounded-lg border-2 border-brand-900 p-8 text-center">
-    <h1 class="text-3xl font-bold text-brand-900 mb-2">Get Full Access</h1>
-    <p class="text-brand-600 mb-6">Start tracking your strength journey with Lift-Log.</p>
+    <h1 class="text-3xl font-bold text-brand-900 mb-2">Get Lifetime Access</h1>
+    <p class="text-brand-600 mb-6">One payment. Yours forever. Start tracking your strength journey today.</p>
 
     <% if (error) { %>
     <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
@@ -41,7 +26,7 @@
 
     <div class="mb-8">
       <p class="text-5xl font-bold text-brand-900">$120</p>
-      <p class="text-brand-600 mt-1">per year &mdash; cancel anytime</p>
+      <p class="text-brand-600 mt-1">one-time payment &mdash; lifetime access</p>
     </div>
 
     <ul class="text-left space-y-3 text-sm text-brand-700 mb-8">
@@ -49,13 +34,16 @@
         <span class="text-green-600 font-bold">✓</span> Unlimited workout logging
       </li>
       <li class="flex items-center gap-2">
-        <span class="text-green-600 font-bold">✓</span> Goal tracking
+        <span class="text-green-600 font-bold">✓</span> Goal tracking & progress history
       </li>
       <li class="flex items-center gap-2">
         <span class="text-green-600 font-bold">✓</span> Calorie & macro tracking
       </li>
       <li class="flex items-center gap-2">
-        <span class="text-green-600 font-bold">✓</span> Full dashboard & history
+        <span class="text-green-600 font-bold">✓</span> Full dashboard & analytics
+      </li>
+      <li class="flex items-center gap-2">
+        <span class="text-green-600 font-bold">✓</span> All future updates included
       </li>
       <li class="flex items-center gap-2">
         <span class="text-green-600 font-bold">✓</span> Community features (coming soon)
@@ -65,11 +53,11 @@
     <form action="/billing/checkout" method="POST">
       <button type="submit"
         class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-4 rounded-lg transition text-lg">
-        Subscribe for $120/yr
+        Get Lifetime Access — $120
       </button>
     </form>
 
-    <p class="text-xs text-brand-500 mt-4">Secure payment via Stripe. Cancel anytime.</p>
+    <p class="text-xs text-brand-500 mt-4">Secure payment via Stripe. One-time charge, no recurring fees.</p>
   </div>
   <% } %>
 

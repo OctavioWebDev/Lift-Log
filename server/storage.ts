@@ -95,12 +95,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserSubscription(id: string, data: Partial<{
-    trialEndsAt: Date;
+    trialEndsAt: Date | null;
     subscriptionStatus: string;
     subscriptionInterval: string;
-    stripeCustomerId: string;
-    stripeSubscriptionId: string;
-    currentPeriodEndsAt: Date;
+    stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
+    currentPeriodEndsAt: Date | null;
   }>): Promise<User | undefined> {
     const [user] = await db
       .update(users)
