@@ -282,14 +282,13 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session!.userId!);
       if (!user) return res.redirect("/login");
       const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
+        mode: "payment",
         payment_method_types: ["card"],
         line_items: [{ price: ANNUAL_PRICE_ID, quantity: 1 }],
         success_url: `${req.protocol}://${req.get("host")}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.protocol}://${req.get("host")}/billing`,
         customer_email: user.email ?? undefined,
-        metadata: { userId: user.id },
-        subscription_data: { metadata: { userId: user.id } },
+        metadata: { userId: String(user.id) },
       });
       res.redirect(session.url!);
     } catch (error) {
@@ -341,33 +340,13 @@ export async function registerRoutes(
           const session = event.data.object as any;
           const userId = session.metadata?.userId;
           if (!userId) break;
-          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          // One-time lifetime purchase — no subscription, no expiry
           await storage.updateUserSubscription(userId, {
             subscriptionStatus: "active",
-            subscriptionInterval: "annual",
+            subscriptionInterval: "lifetime",
             stripeCustomerId: session.customer,
-            stripeSubscriptionId: session.subscription,
-            currentPeriodEndsAt: new Date((subscription as any).current_period_end * 1000),
-          });
-          break;
-        }
-        case "invoice.payment_succeeded": {
-          const invoice = event.data.object as any;
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-          const userId = (subscription as any).metadata?.userId;
-          if (!userId) break;
-          await storage.updateUserSubscription(userId!, {
-            subscriptionStatus: "active",
-            currentPeriodEndsAt: new Date((subscription as any).current_period_end * 1000),
-          });
-          break;
-        }
-        case "customer.subscription.deleted": {
-          const subscription = event.data.object as any;
-          const userId = subscription.metadata?.userId;
-          if (!userId) break;
-          await storage.updateUserSubscription(userId!, {
-            subscriptionStatus: "expired",
+            stripeSubscriptionId: null,
+            currentPeriodEndsAt: null,
           });
           break;
         }
