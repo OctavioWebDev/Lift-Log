@@ -84,13 +84,13 @@ export const workoutSets = sqliteTable("workout_sets", {
   reps: integer("reps").notNull(),
   rpe: real("rpe"),
   date: integer("date", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
-  // SQLite's ALTER TABLE ADD COLUMN only accepts a literal constant default
-  // (not a function call like unixepoch()), so existing rows get backfilled
-  // with 0 here; a one-time UPDATE sets them to a real timestamp right after
-  // the migration runs. New rows always get a real Date from $defaultFn.
+  // No SQL-level default on purpose: drizzle-orm's insert path prefers a
+  // column's SQL default over $defaultFn whenever both are set, which would
+  // make every new row's updatedAt stick at that constant instead of "now".
+  // The production column (added onto existing rows) was backfilled via a
+  // one-off script, not drizzle-kit push — see scripts/migrate-updated-at.ts.
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
-    .default(sql`0`)
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
 }, (table) => ({
@@ -132,13 +132,13 @@ export const goals = sqliteTable("goals", {
   current: integer("current").notNull(),
   target: integer("target").notNull(),
   unit: text("unit").notNull().default("lbs"),
-  // SQLite's ALTER TABLE ADD COLUMN only accepts a literal constant default
-  // (not a function call like unixepoch()), so existing rows get backfilled
-  // with 0 here; a one-time UPDATE sets them to a real timestamp right after
-  // the migration runs. New rows always get a real Date from $defaultFn.
+  // No SQL-level default on purpose: drizzle-orm's insert path prefers a
+  // column's SQL default over $defaultFn whenever both are set, which would
+  // make every new row's updatedAt stick at that constant instead of "now".
+  // The production column (added onto existing rows) was backfilled via a
+  // one-off script, not drizzle-kit push — see scripts/migrate-updated-at.ts.
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
-    .default(sql`0`)
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
 }, (table) => ({
@@ -180,13 +180,13 @@ export const nutritionLogs = sqliteTable("nutrition_logs", {
   protein: real("protein").notNull().default(0),
   carbs: real("carbs").notNull().default(0),
   fat: real("fat").notNull().default(0),
-  // SQLite's ALTER TABLE ADD COLUMN only accepts a literal constant default
-  // (not a function call like unixepoch()), so existing rows get backfilled
-  // with 0 here; a one-time UPDATE sets them to a real timestamp right after
-  // the migration runs. New rows always get a real Date from $defaultFn.
+  // No SQL-level default on purpose: drizzle-orm's insert path prefers a
+  // column's SQL default over $defaultFn whenever both are set, which would
+  // make every new row's updatedAt stick at that constant instead of "now".
+  // The production column (added onto existing rows) was backfilled via a
+  // one-off script, not drizzle-kit push — see scripts/migrate-updated-at.ts.
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
-    .default(sql`0`)
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
 }, (table) => ({
@@ -214,13 +214,13 @@ export const nutritionGoals = sqliteTable("nutrition_goals", {
   protein: real("protein").notNull().default(150),
   carbs: real("carbs").notNull().default(200),
   fat: real("fat").notNull().default(65),
-  // SQLite's ALTER TABLE ADD COLUMN only accepts a literal constant default
-  // (not a function call like unixepoch()), so existing rows get backfilled
-  // with 0 here; a one-time UPDATE sets them to a real timestamp right after
-  // the migration runs. New rows always get a real Date from $defaultFn.
+  // No SQL-level default on purpose: drizzle-orm's insert path prefers a
+  // column's SQL default over $defaultFn whenever both are set, which would
+  // make every new row's updatedAt stick at that constant instead of "now".
+  // The production column (added onto existing rows) was backfilled via a
+  // one-off script, not drizzle-kit push — see scripts/migrate-updated-at.ts.
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
-    .default(sql`0`)
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
 });
