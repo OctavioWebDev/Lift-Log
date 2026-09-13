@@ -4,23 +4,23 @@
 
 <div class="space-y-4">
 
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 sm:p-6">
     <h1 class="text-2xl font-bold text-brand-900 mb-1">Progress</h1>
     <p class="text-sm text-brand-600">Track your strength over time, one exercise at a time.</p>
   </div>
 
   <% if (exercises.length === 0) { %>
-    <div class="bg-white rounded-lg border border-gray-200 p-12 text-center">
+    <div class="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
       <p class="text-brand-600">No workouts logged yet. Once you log a few sets, your progress chart will show up here.</p>
-      <a href="/app" class="inline-block mt-4 text-sm font-medium text-brand-700 hover:text-brand-900">Log a workout →</a>
+      <a href="/app" class="inline-block mt-4 text-sm font-medium text-brand-700 hover:text-yellow-400">Log a workout →</a>
     </div>
   <% } else { %>
 
-    <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 sm:p-6">
       <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
         <label for="exercise-select" class="text-sm font-medium text-brand-700 whitespace-nowrap">Exercise</label>
         <select id="exercise-select"
-          class="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          class="w-full sm:w-64 bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500">
           <% exercises.forEach(function(ex) { %>
             <option value="<%= ex %>"><%= ex %></option>
           <% }); %>
@@ -28,15 +28,15 @@
       </div>
 
       <div class="grid grid-cols-3 gap-4 mb-4">
-        <div class="bg-gray-50 rounded-lg p-3 text-center">
+        <div class="bg-black rounded-lg p-3 text-center">
           <p class="text-2xl font-bold text-brand-900" id="stat-current-1rm">—</p>
           <p class="text-xs text-brand-500 uppercase tracking-wide mt-1">Est. 1RM</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 text-center">
+        <div class="bg-black rounded-lg p-3 text-center">
           <p class="text-2xl font-bold text-brand-900" id="stat-best-set">—</p>
           <p class="text-xs text-brand-500 uppercase tracking-wide mt-1">Best Set</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3 text-center">
+        <div class="bg-black rounded-lg p-3 text-center">
           <p class="text-2xl font-bold text-brand-900" id="stat-total-sessions">—</p>
           <p class="text-xs text-brand-500 uppercase tracking-wide mt-1">Sessions</p>
         </div>
@@ -49,8 +49,8 @@
         <canvas id="exercise-chart"></canvas>
       </div>
       <p class="text-xs text-brand-400 mt-3">
-        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 align-middle mr-1"></span>
-        Gold points mark a new estimated-1RM personal record.
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-white border-2 border-yellow-500 align-middle mr-1"></span>
+        White points mark a new estimated-1RM personal record.
       </p>
     </div>
 
@@ -119,9 +119,11 @@
           {
             label: 'Estimated 1RM',
             data: oneRms,
-            borderColor: '#212529',
-            backgroundColor: 'rgba(33, 37, 41, 0.08)',
-            pointBackgroundColor: prFlags.map(isPr => isPr ? '#f59e0b' : '#212529'),
+            borderColor: '#EAB308',
+            backgroundColor: 'rgba(234, 179, 8, 0.12)',
+            pointBackgroundColor: prFlags.map(isPr => isPr ? '#ffffff' : '#EAB308'),
+            pointBorderColor: prFlags.map(isPr => isPr ? '#EAB308' : '#EAB308'),
+            pointBorderWidth: prFlags.map(isPr => isPr ? 2 : 1),
             pointRadius: prFlags.map(isPr => isPr ? 6 : 3),
             pointHoverRadius: 7,
             fill: true,
@@ -130,7 +132,7 @@
           {
             label: 'Top Set Weight',
             data: weights,
-            borderColor: '#adb5bd',
+            borderColor: '#6b7280',
             backgroundColor: 'transparent',
             borderDash: [4, 4],
             pointRadius: 2,
@@ -143,10 +145,11 @@
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 }, color: '#d1d5db' } },
         },
         scales: {
-          y: { ticks: { callback: (v) => v + ' lbs' } },
+          x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+          y: { ticks: { color: '#9ca3af', callback: (v) => v + ' lbs' }, grid: { color: 'rgba(255,255,255,0.06)' } },
         },
       },
     });

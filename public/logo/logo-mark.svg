@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <!-- Background -->
+  <circle cx="500" cy="500" r="490" fill="#000000" />
+
+  <!-- Chi-Rho monogram, scaled up for small-size legibility (no ring text) -->
+  <g stroke="#EAB308" stroke-width="46" stroke-linecap="square">
+    <line x1="255" y1="345" x2="670" y2="655" />
+    <line x1="670" y1="345" x2="255" y2="655" />
+    <line x1="500" y1="270" x2="500" y2="770" />
+    <line x1="435" y1="700" x2="565" y2="700" />
+  </g>
+  <path d="M 500,270 h 75 a 84,84 0 0 1 0,168 h -75" fill="none" stroke="#EAB308" stroke-width="46" stroke-linecap="square" stroke-linejoin="round" />
+</svg>

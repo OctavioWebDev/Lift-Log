@@ -5,20 +5,20 @@
 <div class="space-y-4">
 
   <!-- Header + Date Nav -->
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 sm:p-6">
     <div class="flex items-center justify-between mb-3">
       <h1 class="text-2xl font-bold text-brand-900">Nutrition</h1>
       <a href="/nutrition?date=<%= new Date().toISOString().split('T')[0] %>"
-        class="text-sm text-brand-600 hover:text-brand-900 transition">Today</a>
+        class="text-sm text-brand-600 hover:text-yellow-400 transition">Today</a>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="changeDate(-1)" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition">
+      <button onclick="changeDate(-1)" class="p-2 rounded-lg border border-gray-800 hover:bg-gray-800 transition">
         <svg class="w-4 h-4 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
       </button>
       <span id="date-display" class="flex-1 text-center font-medium text-brand-900 text-sm"></span>
-      <button onclick="changeDate(1)" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition">
+      <button onclick="changeDate(1)" class="p-2 rounded-lg border border-gray-800 hover:bg-gray-800 transition">
         <svg class="w-4 h-4 text-brand-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
         </svg>
@@ -27,11 +27,11 @@
   </div>
 
   <!-- Daily Totals vs Goals -->
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 sm:p-6">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-bold text-brand-900">Daily Totals</h2>
       <button onclick="document.getElementById('goals-modal').classList.remove('hidden')"
-        class="text-sm text-brand-600 hover:text-brand-900 transition">Edit Goals</button>
+        class="text-sm text-brand-600 hover:text-yellow-400 transition">Edit Goals</button>
     </div>
 
     <div class="flex flex-col sm:flex-row items-center gap-6">
@@ -50,7 +50,7 @@
       <div class="flex-1 w-full space-y-3">
         <% const macros = [
           { label: 'Protein', value: totals.protein, goal: goal.protein, unit: 'g', color: '#7c3aed' },
-          { label: 'Carbs', value: totals.carbs, goal: goal.carbs, unit: 'g', color: '#d97706' },
+          { label: 'Carbs', value: totals.carbs, goal: goal.carbs, unit: 'g', color: '#3b82f6' },
           { label: 'Fat', value: totals.fat, goal: goal.fat, unit: 'g', color: '#16a34a' },
         ]; %>
         <% macros.forEach(function(m) {
@@ -63,11 +63,11 @@
               <span class="inline-block w-2 h-2 rounded-full" style="background-color: <%= m.color %>"></span>
               <%= m.label %>
             </span>
-            <span class="<%= over ? 'text-red-600 font-semibold' : 'text-brand-500' %>">
+            <span class="<%= over ? 'text-red-500 font-semibold' : 'text-brand-500' %>">
               <%= Math.round(m.value) %><span class="text-xs">/<%= Math.round(m.goal) %><%= m.unit %></span>
             </span>
           </div>
-          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-2 bg-gray-800 rounded-full overflow-hidden">
             <div class="h-full rounded-full transition-all"
               style="width: <%= pct %>%; background-color: <%= over ? '#dc2626' : m.color %>"></div>
           </div>
@@ -78,7 +78,7 @@
   </div>
 
   <!-- 30-Day Trends -->
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 sm:p-6">
     <h2 class="text-lg font-bold text-brand-900 mb-4">Last 30 Days</h2>
     <div id="trend-empty" class="hidden py-8 text-center text-brand-500 text-sm">
       Log food for a few days to see your trends here.
@@ -94,7 +94,7 @@
   </div>
 
   <!-- Food Search + Log -->
-  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 sm:p-6">
     <div class="flex items-start justify-between mb-4">
       <h2 class="text-lg font-bold text-brand-900">Log Food</h2>
       <span class="text-xs text-brand-400 text-right max-w-xs leading-snug">
@@ -106,7 +106,7 @@
     <div class="relative mb-4">
       <input type="text" id="food-search" placeholder="Search foods (e.g. chicken breast, oats...)"
         autocomplete="off"
-        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500 pr-10">
+        class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 pr-10">
       <div id="search-spinner" class="hidden absolute right-3 top-3">
         <svg class="animate-spin w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -114,13 +114,13 @@
         </svg>
       </div>
       <div id="food-results"
-        class="hidden absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
+        class="hidden absolute z-20 w-full bg-gray-900 border border-gray-800 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
       </div>
     </div>
 
     <!-- Selected food form (hidden until food picked) -->
     <div id="food-form" class="hidden space-y-3">
-      <div class="bg-brand-50 border border-brand-200 rounded-lg p-3">
+      <div class="bg-gray-800 border border-gray-700 text-white rounded-lg p-3">
         <p class="font-semibold text-brand-900" id="selected-food-name"></p>
         <p class="text-sm text-brand-600" id="selected-food-brand"></p>
       </div>
@@ -129,7 +129,7 @@
         <div>
           <label class="block text-sm font-medium text-brand-700 mb-1">Number of Servings</label>
           <input type="number" id="serving-size" step="0.5" min="0.5" value="1"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500">
         </div>
         <div class="flex flex-col justify-end">
           <p class="text-sm text-brand-500 pb-2">1 serving = <span id="grams-per-serving">—</span></p>
@@ -139,7 +139,7 @@
       <!-- Macro preview -->
       <div class="grid grid-cols-4 gap-2 text-center">
         <% [['cal-preview','Calories','kcal'],['protein-preview','Protein','g'],['carbs-preview','Carbs','g'],['fat-preview','Fat','g']].forEach(function(m) { %>
-        <div class="bg-gray-50 rounded-lg p-2">
+        <div class="bg-black rounded-lg p-2">
           <p class="text-lg font-bold text-brand-900" id="<%= m[0] %>">0</p>
           <p class="text-xs text-brand-500"><%= m[1] %></p>
         </div>
@@ -147,18 +147,18 @@
       </div>
 
       <button onclick="logFood()"
-        class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-3 rounded-lg transition">
+        class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-lg transition">
         Add to Log
       </button>
-      <button onclick="clearFood()" class="w-full text-sm text-brand-500 hover:text-brand-700 transition py-1">
+      <button onclick="clearFood()" class="w-full text-sm text-brand-500 hover:text-yellow-400 transition py-1">
         Cancel
       </button>
     </div>
   </div>
 
   <!-- Today's Log -->
-  <div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-4 sm:px-6 py-4 border-b border-gray-100">
+  <div class="bg-gray-900 rounded-lg border border-gray-800">
+    <div class="px-4 sm:px-6 py-4 border-b border-gray-800">
       <h2 class="text-lg font-bold text-brand-900">Today's Log</h2>
     </div>
     <div id="nutrition-log-list">
@@ -168,7 +168,7 @@
       </div>
       <% } else { %>
         <% logs.forEach(function(log) { %>
-        <div class="px-4 sm:px-6 py-3 border-b border-gray-50 flex items-center justify-between" id="log-<%= log.id %>">
+        <div class="px-4 sm:px-6 py-3 border-b border-gray-800 flex items-center justify-between" id="log-<%= log.id %>">
           <div>
             <p class="font-medium text-brand-900 text-sm"><%= log.foodName %></p>
             <p class="text-xs text-brand-500">
@@ -199,24 +199,24 @@
 
 <!-- Goals Modal -->
 <div id="goals-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+  <div class="bg-gray-900 rounded-lg p-6 w-full max-w-sm">
     <h3 class="text-xl font-bold text-brand-900 mb-4">Daily Macro Goals</h3>
     <div class="space-y-3">
       <% [['calories','Calories (kcal)', goal.calories],['protein','Protein (g)', goal.protein],['carbs','Carbs (g)', goal.carbs],['fat','Fat (g)', goal.fat]].forEach(function(f) { %>
       <div>
         <label class="block text-sm font-medium text-brand-700 mb-1"><%= f[1] %></label>
         <input type="number" id="goal-<%= f[0] %>" value="<%= Math.round(f[2]) %>" min="0"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500">
       </div>
       <% }); %>
     </div>
     <div class="flex gap-3 mt-5">
       <button onclick="saveGoals()"
-        class="flex-1 bg-brand-900 hover:bg-brand-800 text-white font-semibold py-2.5 rounded-lg transition">
+        class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-2.5 rounded-lg transition">
         Save
       </button>
       <button onclick="document.getElementById('goals-modal').classList.add('hidden')"
-        class="flex-1 bg-gray-100 hover:bg-gray-200 text-brand-900 font-medium py-2.5 rounded-lg transition">
+        class="flex-1 bg-gray-800 hover:bg-gray-700 text-brand-900 font-medium py-2.5 rounded-lg transition">
         Cancel
       </button>
     </div>
@@ -268,7 +268,7 @@
         return;
       }
       foodResults.innerHTML = foods.map((f, i) => `
-        <div class="food-result px-4 py-3 cursor-pointer hover:bg-brand-50 border-b border-gray-50 last:border-0"
+        <div class="food-result px-4 py-3 cursor-pointer hover:bg-gray-800 border-b border-gray-800 last:border-0"
           onclick="selectFood(${i})">
           <p class="text-sm font-medium text-brand-900">${f.name}</p>
           <p class="text-xs text-brand-500">${f.brand ? f.brand + ' · ' : ''}per serving (${f.gramsPerServing}${f.servingUnit || 'g'}) · ${f.calories}kcal · P:${f.protein}g C:${f.carbs}g F:${f.fat}g</p>
@@ -376,7 +376,7 @@
       data: {
         datasets: [{
           data: over ? [goalCalories, 0] : [consumedClamped, remaining],
-          backgroundColor: over ? ['#dc2626'] : ['#212529', '#f1f3f5'],
+          backgroundColor: over ? ['#dc2626'] : ['#EAB308', '#374151'],
           borderWidth: 0,
         }],
       },
@@ -415,8 +415,8 @@
           {
             label: 'Calories',
             data: history.map(d => Math.round(d.calories)),
-            borderColor: '#212529',
-            backgroundColor: 'rgba(33, 37, 41, 0.08)',
+            borderColor: '#EAB308',
+            backgroundColor: 'rgba(234, 179, 8, 0.12)',
             fill: true,
             tension: 0.3,
             pointRadius: 2,
@@ -424,7 +424,7 @@
           {
             label: 'Goal',
             data: history.map(() => goalCalories),
-            borderColor: '#adb5bd',
+            borderColor: '#6b7280',
             borderDash: [4, 4],
             pointRadius: 0,
             fill: false,
@@ -434,8 +434,14 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }, title: { display: true, text: 'Calories', align: 'start', font: { size: 13 } } },
-        scales: { x: { ticks: { maxTicksLimit: 8 } } },
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: '#d1d5db' } },
+          title: { display: true, text: 'Calories', align: 'start', font: { size: 13 }, color: '#d1d5db' },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8, color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+          y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        },
       },
     });
 
@@ -445,15 +451,21 @@
         labels,
         datasets: [
           { label: 'Protein (g)', data: history.map(d => Math.round(d.protein)), borderColor: '#7c3aed', backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
-          { label: 'Carbs (g)', data: history.map(d => Math.round(d.carbs)), borderColor: '#d97706', backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
+          { label: 'Carbs (g)', data: history.map(d => Math.round(d.carbs)), borderColor: '#3b82f6', backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
           { label: 'Fat (g)', data: history.map(d => Math.round(d.fat)), borderColor: '#16a34a', backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }, title: { display: true, text: 'Macros', align: 'start', font: { size: 13 } } },
-        scales: { x: { ticks: { maxTicksLimit: 8 } } },
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: '#d1d5db' } },
+          title: { display: true, text: 'Macros', align: 'start', font: { size: 13 }, color: '#d1d5db' },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8, color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+          y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        },
       },
     });
   })();

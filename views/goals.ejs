@@ -2,13 +2,13 @@
 
 <div class="space-y-6">
   <!-- Page Header -->
-  <div class="bg-white rounded-lg border border-gray-200 p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-6">
     <h1 class="text-3xl font-bold text-brand-900 mb-1">Training Goals</h1>
     <p class="text-brand-600">Set targets and track your progress</p>
   </div>
 
   <!-- Add Goal Form -->
-  <div class="bg-white rounded-lg border border-gray-200 p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-6">
     <h2 class="text-xl font-bold text-brand-900 mb-4">Add New Goal</h2>
     
     <form 
@@ -26,7 +26,7 @@
             name="exercise" 
             required
             placeholder="Squat"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
           >
         </div>
         
@@ -37,7 +37,7 @@
             name="current" 
             required
             placeholder="225"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
           >
         </div>
         
@@ -48,14 +48,14 @@
             name="target" 
             required
             placeholder="315"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-brand-900 placeholder-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
           >
         </div>
         
         <div class="flex items-end">
           <button 
             type="submit"
-            class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-2 rounded-lg transition"
+            class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-2 rounded-lg transition"
           >
             Add Goal
           </button>
@@ -65,12 +65,12 @@
   </div>
 
   <!-- Goals List -->
-  <div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-6 py-4 border-b border-gray-200">
+  <div class="bg-gray-900 rounded-lg border border-gray-800">
+    <div class="px-6 py-4 border-b border-gray-800">
       <h2 class="text-xl font-bold text-brand-900">Your Goals</h2>
     </div>
     
-    <div id="goals-list" class="divide-y divide-gray-200">
+    <div id="goals-list" class="divide-y divide-gray-800">
       <% if (goals.length === 0) { %>
         <div class="px-6 py-12 text-center">
           <p class="text-brand-600">No goals set yet. Add your first goal above.</p>
