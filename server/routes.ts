@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import express from "express";
+import cors from "cors";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema, insertNutritionLogSchema, insertNutritionGoalSchema } from "@shared/schema";
@@ -24,6 +25,11 @@ export async function registerRoutes(
   // ============================================================================
   // MOBILE JSON API (JWT-authenticated, versioned)
   // ============================================================================
+  // Open CORS here only — the mobile client authenticates with a Bearer token
+  // (never cookies), so there's no CSRF-relevant credential to protect by
+  // restricting origins. The cookie-authenticated web app routes below are
+  // unaffected since same-origin requests never trigger CORS checks.
+  app.use("/api/v1", cors());
   registerApiV1Routes(app);
 
   // ============================================================================
