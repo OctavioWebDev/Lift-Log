@@ -190,16 +190,55 @@ export async function registerRoutes(
         activeGoals: goals.length
       };
       const recentWorkouts = allWorkouts.slice(0, 10);
+      const heatmapDays = 84; // 12 weeks
+      const workoutDates = await storage.getWorkoutDatesInRange(req.session!.userId!, heatmapDays);
       res.render("dashboard", {
         title: "Dashboard - Chi-Rho Lifts",
         stats,
         recentWorkouts,
         goals,
-        user: req.user
+        user: req.user,
+        workoutDates,
+        heatmapDays,
       });
     } catch (error) {
       console.error("Error rendering dashboard:", error);
       res.status(500).send("Error loading dashboard");
+    }
+  });
+
+  app.get("/progress", requireSubscription, async (req, res) => {
+    try {
+      const exercises = await storage.getExerciseNames(req.session!.userId!);
+      res.render("progress", {
+        title: "Progress - Chi-Rho Lifts",
+        user: req.user,
+        exercises,
+      });
+    } catch (error) {
+      console.error("Error rendering progress:", error);
+      res.status(500).send("Error loading page");
+    }
+  });
+
+  app.get("/api/stats/exercise-history", requireAuth, async (req, res) => {
+    try {
+      const exercise = req.query.exercise as string;
+      if (!exercise) {
+        return res.status(400).json({ message: "exercise query param is required" });
+      }
+      const sets = await storage.getExerciseHistory(req.session!.userId!, exercise);
+      // Epley formula for estimated 1RM: weight * (1 + reps / 30)
+      const points = sets.map((s) => ({
+        date: (s.date instanceof Date ? s.date : new Date(s.date)).toISOString().split("T")[0],
+        weight: s.weight,
+        reps: s.reps,
+        estimatedOneRepMax: Math.round(s.weight * (1 + s.reps / 30)),
+      }));
+      res.json(points);
+    } catch (error) {
+      console.error("Error fetching exercise history:", error);
+      res.status(500).json({ message: "Failed to fetch exercise history" });
     }
   });
 
@@ -550,6 +589,17 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error rendering nutrition:", error);
       res.status(500).send("Error loading page");
+    }
+  });
+
+  app.get("/api/nutrition/history", requireAuth, async (req, res) => {
+    try {
+      const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 90);
+      const history = await storage.getNutritionHistory(req.session!.userId!, days);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching nutrition history:", error);
+      res.status(500).json({ message: "Failed to fetch nutrition history" });
     }
   });
 
