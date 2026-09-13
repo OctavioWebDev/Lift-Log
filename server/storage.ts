@@ -12,12 +12,14 @@ import {
   type NutritionGoal,
   type InsertNutritionGoal,
   type RefreshToken,
+  type PushToken,
   users,
   workoutSets,
   goals,
   nutritionLogs,
   nutritionGoals,
   refreshTokens,
+  pushTokens,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
@@ -30,12 +32,12 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
   updateUserSubscription(id: string, data: Partial<{
-    trialEndsAt: Date;
+    trialEndsAt: Date | null;
     subscriptionStatus: string;
-    subscriptionInterval: string;
+    subscriptionInterval: string | null;
     stripeCustomerId: string;
     stripeSubscriptionId: string;
-    currentPeriodEndsAt: Date;
+    currentPeriodEndsAt: Date | null;
   }>): Promise<User | undefined>;
 
   // Workout methods — all scoped by userId
@@ -70,6 +72,11 @@ export interface IStorage {
   getRefreshToken(id: string): Promise<RefreshToken | undefined>;
   revokeRefreshToken(id: string): Promise<void>;
   revokeAllUserRefreshTokens(userId: string): Promise<void>;
+
+  // Push token methods (mobile push notifications)
+  upsertPushToken(userId: string, token: string, platform: string | null): Promise<PushToken>;
+  deletePushToken(token: string): Promise<void>;
+  getAllPushTokens(): Promise<PushToken[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -105,7 +112,7 @@ export class DatabaseStorage implements IStorage {
   async updateUserSubscription(id: string, data: Partial<{
     trialEndsAt: Date | null;
     subscriptionStatus: string;
-    subscriptionInterval: string;
+    subscriptionInterval: string | null;
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
     currentPeriodEndsAt: Date | null;
@@ -146,6 +153,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkoutSet(insertWorkoutSet: InsertWorkoutSet): Promise<WorkoutSet> {
+    if (insertWorkoutSet.clientId) {
+      const [existing] = await db
+        .select()
+        .from(workoutSets)
+        .where(eq(workoutSets.clientId, insertWorkoutSet.clientId));
+      if (existing) return existing;
+    }
     const [workoutSet] = await db
       .insert(workoutSets)
       .values(insertWorkoutSet)
@@ -186,6 +200,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGoal(insertGoal: InsertGoal): Promise<Goal> {
+    if (insertGoal.clientId) {
+      const [existing] = await db.select().from(goals).where(eq(goals.clientId, insertGoal.clientId));
+      if (existing) return existing;
+    }
     const [goal] = await db
       .insert(goals)
       .values(insertGoal)
@@ -235,6 +253,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createNutritionLog(log: InsertNutritionLog): Promise<NutritionLog> {
+    if (log.clientId) {
+      const [existing] = await db
+        .select()
+        .from(nutritionLogs)
+        .where(eq(nutritionLogs.clientId, log.clientId));
+      if (existing) return existing;
+    }
     const [entry] = await db.insert(nutritionLogs).values(log).returning();
     return entry;
   }
@@ -293,6 +318,28 @@ export class DatabaseStorage implements IStorage {
       .update(refreshTokens)
       .set({ revokedAt: new Date() })
       .where(eq(refreshTokens.userId, userId));
+  }
+
+  // ─── Push Token Methods ────────────────────────────────────────────────────────
+
+  async upsertPushToken(userId: string, token: string, platform: string | null): Promise<PushToken> {
+    const [row] = await db
+      .insert(pushTokens)
+      .values({ userId, token, platform })
+      .onConflictDoUpdate({
+        target: pushTokens.token,
+        set: { userId, platform },
+      })
+      .returning();
+    return row;
+  }
+
+  async deletePushToken(token: string): Promise<void> {
+    await db.delete(pushTokens).where(eq(pushTokens.token, token));
+  }
+
+  async getAllPushTokens(): Promise<PushToken[]> {
+    return db.select().from(pushTokens);
   }
 
 }

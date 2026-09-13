@@ -11,7 +11,7 @@ import {
 import { fromError } from "zod-validation-error";
 import { hashPassword, verifyPassword, isValidEmail, isValidPassword, isValidUsername } from "../auth";
 import { requireApiAuth, requireApiSubscription } from "../middleware/apiAuth";
-import { getSubscriptionStatus } from "../stripe";
+import { getSubscriptionStatus, stripe, ANNUAL_PRICE_ID } from "../stripe";
 import { searchFoods } from "../food";
 import {
   signAccessToken,
@@ -169,6 +169,125 @@ export function registerApiV1Routes(app: Express) {
       subscriptionInterval: user.subscriptionInterval,
       currentPeriodEndsAt: user.currentPeriodEndsAt,
     });
+  });
+
+  // Android billing: Stripe checkout opened in an in-app browser (same one-time
+  // "lifetime access" product as the web app — no separate mobile price). iOS
+  // uses native in-app purchase via RevenueCat instead (see the webhook below);
+  // Apple's guidelines don't allow a card-checkout path like this one for
+  // unlocking paid app functionality.
+  app.post(`${base}/billing/checkout`, requireApiAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      const { redirectUrl } = req.body ?? {};
+      if (!redirectUrl || typeof redirectUrl !== "string") {
+        return res.status(400).json({ message: "redirectUrl is required" });
+      }
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [{ price: ANNUAL_PRICE_ID, quantity: 1 }],
+        success_url: redirectUrl,
+        cancel_url: redirectUrl,
+        customer_email: user.email ?? undefined,
+        metadata: { userId: String(user.id) },
+      });
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("API checkout error:", error);
+      res.status(500).json({ message: "Failed to start checkout" });
+    }
+  });
+
+  // iOS billing: RevenueCat calls this after a purchase/renewal/expiration.
+  // The mobile app configures Purchases with appUserID = our own user id (see
+  // mobile/src/lib/billing/billing.ios.ts), so RevenueCat's app_user_id maps
+  // directly to shared/schema.ts's users.id — no separate mapping table needed.
+  //
+  // Authenticated via a shared secret in the Authorization header, configured
+  // to match in the RevenueCat dashboard (Project Settings > Webhooks) — this
+  // is RevenueCat's documented verification method, not a signature scheme.
+  app.post(`${base}/billing/revenuecat-webhook`, async (req, res) => {
+    const secret = process.env.REVENUECAT_WEBHOOK_SECRET;
+    if (!secret) {
+      return res.status(500).json({ message: "Webhook secret not configured" });
+    }
+    if (req.headers.authorization !== secret) {
+      return res.status(401).json({ message: "Invalid webhook credentials" });
+    }
+    try {
+      const event = req.body?.event;
+      const userId = event?.app_user_id;
+      if (!userId) return res.status(200).json({ received: true });
+
+      // Grant/restore access on any event that means "this user owns the
+      // product" — err toward granting rather than revoking for event types
+      // we're not certain about, since wrongly revoking a paying customer's
+      // access is a much worse failure than occasionally under-revoking.
+      const GRANT_EVENTS = [
+        "INITIAL_PURCHASE",
+        "NON_RENEWING_PURCHASE",
+        "RENEWAL",
+        "UNCANCELLATION",
+        "PRODUCT_CHANGE",
+        "TRANSFER",
+      ];
+      const REVOKE_EVENTS = ["EXPIRATION"];
+
+      if (GRANT_EVENTS.includes(event.type)) {
+        await storage.updateUserSubscription(userId, {
+          subscriptionStatus: "active",
+          subscriptionInterval: "lifetime",
+          currentPeriodEndsAt: null,
+        });
+      } else if (REVOKE_EVENTS.includes(event.type)) {
+        // getSubscriptionStatus() treats subscriptionInterval === "lifetime" as
+        // active regardless of subscriptionStatus, so revoking access means
+        // clearing that too, not just flipping the status flag.
+        await storage.updateUserSubscription(userId, {
+          subscriptionStatus: "inactive",
+          subscriptionInterval: null,
+        });
+      } else {
+        console.log(`[revenuecat] unhandled event type: ${event.type}`);
+      }
+      res.status(200).json({ received: true });
+    } catch (error) {
+      console.error("RevenueCat webhook error:", error);
+      res.status(500).json({ message: "Webhook handler failed" });
+    }
+  });
+
+  // ==========================================================================
+  // PUSH TOKENS
+  // ==========================================================================
+  app.post(`${base}/push-tokens`, requireApiAuth, async (req, res) => {
+    try {
+      const { token, platform } = req.body ?? {};
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "token is required" });
+      }
+      await storage.upsertPushToken(req.userId!, token, platform ?? null);
+      res.status(204).send();
+    } catch (error) {
+      console.error("API error registering push token:", error);
+      res.status(500).json({ message: "Failed to register push token" });
+    }
+  });
+
+  app.delete(`${base}/push-tokens`, requireApiAuth, async (req, res) => {
+    try {
+      const { token } = req.body ?? {};
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "token is required" });
+      }
+      await storage.deletePushToken(token);
+      res.status(204).send();
+    } catch (error) {
+      console.error("API error deleting push token:", error);
+      res.status(500).json({ message: "Failed to delete push token" });
+    }
   });
 
   // ==========================================================================

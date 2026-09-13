@@ -1,63 +1,57 @@
 import { useState } from "react";
 import { FlatList, Pressable, TextInput } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { SyncStatusBanner } from "@/components/sync-status-banner";
 import { api } from "@/lib/api";
+import { useSession } from "@/lib/auth-context";
+import { useOfflineResource } from "@/lib/offline/use-offline-resource";
 import { todayISODate } from "@/lib/date";
 import type { FoodSearchResult, NutritionLog } from "@/lib/types";
 import { screenStyles as styles } from "@/styles/screen";
 
 export default function Nutrition() {
+  const { user } = useSession();
   const date = todayISODate();
-  const queryClient = useQueryClient();
-
-  const { data: logs, isLoading } = useQuery({
-    queryKey: ["nutrition", date],
-    queryFn: () => api.nutrition.forDate(date),
-  });
+  const { data: allLogs, isLoading, create, remove } = useOfflineResource<NutritionLog>("nutritionLogs", user?.id);
+  const logs = allLogs.filter((l) => l.date.startsWith(date));
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  const createMutation = useMutation({
-    mutationFn: api.nutrition.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nutrition", date] }),
-  });
-  const deleteMutation = useMutation({
-    mutationFn: api.nutrition.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nutrition", date] }),
-  });
-
+  // Food search inherently needs the network (it's a USDA lookup), so this part
+  // of the screen is online-only. Logging the result once found goes through the
+  // offline queue like everything else, so it still works if you go offline
+  // between searching and tapping a result.
   async function handleSearch() {
     if (!query.trim()) return;
     setIsSearching(true);
     try {
       setResults(await api.foodSearch(query.trim()));
+    } catch {
+      setResults([]);
     } finally {
       setIsSearching(false);
     }
   }
 
-  function handleLog(food: FoodSearchResult) {
-    createMutation.mutate(
-      {
-        date: `${date}T12:00:00.000Z`,
-        foodName: food.name,
-        brandName: food.brand || undefined,
-        servingSize: 1,
-        servingUnit: "serving",
-        calories: food.calories,
-        protein: food.protein,
-        carbs: food.carbs,
-        fat: food.fat,
-      },
-      { onSuccess: () => setResults([]) }
-    );
+  async function handleLog(food: FoodSearchResult) {
+    await create({
+      date: `${date}T12:00:00.000Z`,
+      foodName: food.name,
+      brandName: food.brand || undefined,
+      servingSize: 1,
+      servingUnit: "serving",
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
+    });
+    setResults([]);
   }
 
-  const totals = (logs ?? []).reduce(
+  const totals = logs.reduce(
     (acc, l) => ({
       calories: acc.calories + l.calories,
       protein: acc.protein + l.protein,
@@ -69,6 +63,7 @@ export default function Nutrition() {
 
   return (
     <ThemedView style={styles.container}>
+      <SyncStatusBanner />
       <ThemedView style={styles.statsRow}>
         <ThemedView style={styles.statCard}>
           <ThemedText style={styles.statValue}>{Math.round(totals.calories)}</ThemedText>
@@ -96,9 +91,9 @@ export default function Nutrition() {
         </ThemedView>
       </ThemedView>
 
-      <FlatList<NutritionLog>
-        data={logs ?? []}
-        keyExtractor={(item) => String(item.id)}
+      <FlatList<NutritionLog & { clientId: string }>
+        data={logs}
+        keyExtractor={(item) => item.clientId}
         contentContainerStyle={{ gap: 8 }}
         ListEmptyComponent={!isLoading ? <ThemedText style={styles.empty}>No food logged today.</ThemedText> : null}
         renderItem={({ item }) => (
@@ -110,7 +105,7 @@ export default function Nutrition() {
                 {Math.round(item.fat)}f
               </ThemedText>
             </ThemedView>
-            <Pressable onPress={() => deleteMutation.mutate(item.id)}>
+            <Pressable onPress={() => remove(item.clientId)}>
               <ThemedText style={styles.deleteText}>Delete</ThemedText>
             </Pressable>
           </ThemedView>

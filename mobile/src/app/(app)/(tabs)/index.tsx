@@ -1,31 +1,28 @@
 import { useState } from "react";
 import { FlatList, Pressable, TextInput } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { api } from "@/lib/api";
+import { SyncStatusBanner } from "@/components/sync-status-banner";
+import { useSession } from "@/lib/auth-context";
+import { useOfflineResource } from "@/lib/offline/use-offline-resource";
+import { useRestTimer } from "@/lib/use-rest-timer";
+import { scheduleLocalNotification } from "@/lib/notifications";
+import { useHealthSyncSetting } from "@/lib/health/use-health-sync-setting";
+import { healthSync } from "@/lib/health";
 import { formatDisplayDate, shiftISODate, todayISODate } from "@/lib/date";
-import type { WorkoutSet } from "@/lib/types";
+import type { Goal, WorkoutSet } from "@/lib/types";
 import { screenStyles as styles } from "@/styles/screen";
 
+const REST_SECONDS = 90;
+
 export default function WorkoutLog() {
+  const { user } = useSession();
   const [date, setDate] = useState(todayISODate());
-  const queryClient = useQueryClient();
-
-  const { data: workouts, isLoading } = useQuery({
-    queryKey: ["workout-sets", date],
-    queryFn: () => api.workoutSets.forDate(date),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: api.workoutSets.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workout-sets", date] }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: api.workoutSets.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workout-sets", date] }),
-  });
+  const { data: allWorkouts, isLoading, create, remove } = useOfflineResource<WorkoutSet>("workoutSets", user?.id);
+  const { data: goals } = useOfflineResource<Goal>("goals", user?.id);
+  const workouts = allWorkouts.filter((w) => w.date.startsWith(date));
+  const restTimer = useRestTimer();
+  const { enabled: healthSyncEnabled } = useHealthSyncSetting();
 
   const [exercise, setExercise] = useState("");
   const [sets, setSets] = useState("3");
@@ -33,30 +30,44 @@ export default function WorkoutLog() {
   const [reps, setReps] = useState("");
   const [rpe, setRpe] = useState("");
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!exercise.trim() || !weight || !reps) return;
-    createMutation.mutate(
-      {
-        exercise: exercise.trim(),
-        sets: Number(sets) || 1,
-        weight: Number(weight),
-        reps: Number(reps),
-        rpe: rpe ? Number(rpe) : undefined,
-        date: `${date}T12:00:00.000Z`,
-      },
-      {
-        onSuccess: () => {
-          setExercise("");
-          setWeight("");
-          setReps("");
-          setRpe("");
-        },
-      }
-    );
+    const weightNum = Number(weight);
+    const setsNum = Number(sets) || 1;
+    const repsNum = Number(reps);
+    const exerciseName = exercise.trim();
+    const setDate = new Date(`${date}T12:00:00.000Z`);
+
+    await create({
+      exercise: exerciseName,
+      sets: setsNum,
+      weight: weightNum,
+      reps: repsNum,
+      rpe: rpe ? Number(rpe) : undefined,
+      date: setDate.toISOString(),
+    });
+    setExercise("");
+    setWeight("");
+    setReps("");
+    setRpe("");
+
+    restTimer.start(REST_SECONDS);
+
+    if (healthSyncEnabled) {
+      healthSync
+        .syncWorkoutSet({ date: setDate, exercise: exerciseName, sets: setsNum, reps: repsNum, weight: weightNum })
+        .catch((err) => console.warn("[health] failed to sync workout set:", err));
+    }
+
+    const matchingGoal = goals.find((g) => g.exercise.toLowerCase() === exerciseName.toLowerCase());
+    if (matchingGoal && weightNum >= matchingGoal.target) {
+      scheduleLocalNotification("New PR! 🎉", `You hit your ${exerciseName} goal of ${matchingGoal.target} ${matchingGoal.unit ?? "lbs"}!`);
+    }
   }
 
   return (
     <ThemedView style={styles.container}>
+      <SyncStatusBanner />
       <ThemedView style={styles.dateNav}>
         <Pressable style={styles.navButton} onPress={() => setDate((d) => shiftISODate(d, -1))}>
           <ThemedText>{"< Prev"}</ThemedText>
@@ -67,9 +78,20 @@ export default function WorkoutLog() {
         </Pressable>
       </ThemedView>
 
-      <FlatList<WorkoutSet>
-        data={workouts ?? []}
-        keyExtractor={(item) => String(item.id)}
+      {restTimer.secondsLeft !== null && (
+        <ThemedView style={styles.restTimer}>
+          <ThemedText type="smallBold">Resting: {restTimer.secondsLeft}s</ThemedText>
+          <Pressable onPress={restTimer.cancel}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Skip
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+      )}
+
+      <FlatList<WorkoutSet & { clientId: string }>
+        data={workouts}
+        keyExtractor={(item) => item.clientId}
         contentContainerStyle={{ gap: 8 }}
         ListEmptyComponent={
           !isLoading ? <ThemedText style={styles.empty}>No sets logged for this day yet.</ThemedText> : null
@@ -82,7 +104,7 @@ export default function WorkoutLog() {
                 {item.sets} × {item.reps} @ {item.weight} lbs{item.rpe ? ` · RPE ${item.rpe}` : ""}
               </ThemedText>
             </ThemedView>
-            <Pressable onPress={() => deleteMutation.mutate(item.id)}>
+            <Pressable onPress={() => remove(item.clientId)}>
               <ThemedText style={styles.deleteText}>Delete</ThemedText>
             </Pressable>
           </ThemedView>
@@ -121,10 +143,7 @@ export default function WorkoutLog() {
             onChangeText={setRpe}
           />
         </ThemedView>
-        <Pressable
-          style={[styles.button, createMutation.isPending && styles.buttonDisabled]}
-          disabled={createMutation.isPending}
-          onPress={handleAdd}>
+        <Pressable style={styles.button} onPress={handleAdd}>
           <ThemedText style={styles.buttonText}>Add Set</ThemedText>
         </Pressable>
       </ThemedView>

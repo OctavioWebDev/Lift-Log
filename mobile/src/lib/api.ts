@@ -83,6 +83,14 @@ export const api = {
   },
   billing: {
     status: () => request<BillingStatus>("/api/v1/billing/status"),
+    createCheckoutSession: (redirectUrl: string) =>
+      request<{ url: string }>("/api/v1/billing/checkout", json({ redirectUrl })),
+  },
+  pushTokens: {
+    register: (token: string, platform: string) =>
+      request<void>("/api/v1/push-tokens", json({ token, platform })),
+    unregister: (token: string) =>
+      request<void>("/api/v1/push-tokens", { method: "DELETE", body: JSON.stringify({ token }) }),
   },
   workoutSets: {
     forDate: (date: string) => request<WorkoutSet[]>(`/api/v1/workout-sets?date=${date}`),

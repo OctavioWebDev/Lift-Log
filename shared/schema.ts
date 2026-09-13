@@ -50,6 +50,24 @@ export const refreshTokens = sqliteTable("refresh_tokens", {
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 
 // ============================================================================
+// PUSH TOKENS TABLE (mobile push notifications)
+// ============================================================================
+export const pushTokens = sqliteTable("push_tokens", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id),
+  // Expo push token, e.g. "ExponentPushToken[xxxxxxxx]" — unique per device+app
+  // install, so re-registering the same device under a different account moves
+  // ownership rather than creating a duplicate row (see storage.upsertPushToken).
+  token: text("token").notNull().unique(),
+  platform: text("platform"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export type PushToken = typeof pushTokens.$inferSelect;
+
+// ============================================================================
 // WORKOUT SETS TABLE
 // ============================================================================
 // shared/schema.ts
@@ -57,6 +75,9 @@ export type RefreshToken = typeof refreshTokens.$inferSelect;
 export const workoutSets = sqliteTable("workout_sets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: text("user_id").notNull().references(() => users.id),  // ADD THIS
+  // Set by offline clients at creation time so a retried sync push can't create a
+  // duplicate — see storage.ts createWorkoutSet, which upserts on this column.
+  clientId: text("client_id"),
   exercise: text("exercise").notNull(),
   sets: integer("sets").notNull().default(1),
   weight: integer("weight").notNull(),
@@ -67,7 +88,9 @@ export const workoutSets = sqliteTable("workout_sets", {
     .notNull()
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
-});
+}, (table) => ({
+  clientIdUnique: uniqueIndex("workout_sets_client_id_unique").on(table.clientId),
+}));
 
 export const insertWorkoutSetSchema = createInsertSchema(workoutSets, {
   date: z.string().transform((str) => new Date(str)),
@@ -99,6 +122,7 @@ export type WorkoutSet = typeof workoutSets.$inferSelect;
 export const goals = sqliteTable("goals", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: text("user_id").notNull().references(() => users.id),
+  clientId: text("client_id"),
   exercise: text("exercise").notNull(),
   current: integer("current").notNull(),
   target: integer("target").notNull(),
@@ -109,6 +133,7 @@ export const goals = sqliteTable("goals", {
     .$onUpdate(() => new Date()),
 }, (table) => ({
   userExerciseUnique: uniqueIndex("goals_user_exercise_unique").on(table.userId, table.exercise),
+  clientIdUnique: uniqueIndex("goals_client_id_unique").on(table.clientId),
 }));
 
 export const insertGoalSchema = createInsertSchema(goals, {
@@ -135,6 +160,7 @@ export type Goal = typeof goals.$inferSelect;
 export const nutritionLogs = sqliteTable("nutrition_logs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: text("user_id").notNull().references(() => users.id),
+  clientId: text("client_id"),
   date: integer("date", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   foodName: text("food_name").notNull(),
   brandName: text("brand_name"),
@@ -148,7 +174,9 @@ export const nutritionLogs = sqliteTable("nutrition_logs", {
     .notNull()
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
-});
+}, (table) => ({
+  clientIdUnique: uniqueIndex("nutrition_logs_client_id_unique").on(table.clientId),
+}));
 
 export const insertNutritionLogSchema = createInsertSchema(nutritionLogs, {
   servingSize: z.coerce.number().positive(),

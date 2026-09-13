@@ -85,4 +85,13 @@ export const screenStyles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
   },
+  restTimer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#dbeafe",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
 });

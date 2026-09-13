@@ -6,6 +6,8 @@ import { registerRoutes } from "./routes";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import cron from "node-cron";
+import { runStreakReminderJob } from "./streak-reminder";
 
 console.log("✓ Imports loaded");
 
@@ -99,6 +101,14 @@ console.log("✓ Middleware configured");
   await registerRoutes(httpServer, app);
 
   console.log("✓ Routes registered");
+
+  // Daily at 18:00 UTC — nudges anyone with a registered device who hasn't
+  // logged a set yet today. No-op until a mobile client actually registers a
+  // push token (requires an EAS project; see mobile/src/lib/notifications.ts).
+  cron.schedule("0 18 * * *", () => {
+    runStreakReminderJob().catch((err) => console.error("[streak-reminder] job failed:", err));
+  });
+  console.log("✓ Streak reminder cron scheduled");
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

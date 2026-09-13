@@ -1,48 +1,35 @@
 import { useState } from "react";
 import { FlatList, Pressable, TextInput } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { api } from "@/lib/api";
+import { SyncStatusBanner } from "@/components/sync-status-banner";
+import { useSession } from "@/lib/auth-context";
+import { useOfflineResource } from "@/lib/offline/use-offline-resource";
 import type { Goal } from "@/lib/types";
 import { screenStyles as styles } from "@/styles/screen";
 
 export default function Goals() {
-  const queryClient = useQueryClient();
-  const { data: goals, isLoading } = useQuery({ queryKey: ["goals"], queryFn: api.goals.all });
-
-  const createMutation = useMutation({
-    mutationFn: api.goals.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals"] }),
-  });
-  const deleteMutation = useMutation({
-    mutationFn: api.goals.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals"] }),
-  });
+  const { user } = useSession();
+  const { data: goals, isLoading, create, remove } = useOfflineResource<Goal>("goals", user?.id);
 
   const [exercise, setExercise] = useState("");
   const [current, setCurrent] = useState("");
   const [target, setTarget] = useState("");
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!exercise.trim() || !current || !target) return;
-    createMutation.mutate(
-      { exercise: exercise.trim(), current: Number(current), target: Number(target) },
-      {
-        onSuccess: () => {
-          setExercise("");
-          setCurrent("");
-          setTarget("");
-        },
-      }
-    );
+    await create({ exercise: exercise.trim(), current: Number(current), target: Number(target) });
+    setExercise("");
+    setCurrent("");
+    setTarget("");
   }
 
   return (
     <ThemedView style={styles.container}>
-      <FlatList<Goal>
-        data={goals ?? []}
-        keyExtractor={(item) => String(item.id)}
+      <SyncStatusBanner />
+      <FlatList<Goal & { clientId: string }>
+        data={goals}
+        keyExtractor={(item) => item.clientId}
         contentContainerStyle={{ gap: 8 }}
         ListEmptyComponent={!isLoading ? <ThemedText style={styles.empty}>No goals set yet.</ThemedText> : null}
         renderItem={({ item }) => {
@@ -52,10 +39,10 @@ export default function Goals() {
               <ThemedView>
                 <ThemedText style={styles.cardTitle}>{item.exercise}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {item.current} / {item.target} {item.unit} ({Math.round(progress * 100)}%)
+                  {item.current} / {item.target} {item.unit ?? "lbs"} ({Math.round(progress * 100)}%)
                 </ThemedText>
               </ThemedView>
-              <Pressable onPress={() => deleteMutation.mutate(item.id)}>
+              <Pressable onPress={() => remove(item.clientId)}>
                 <ThemedText style={styles.deleteText}>Delete</ThemedText>
               </Pressable>
             </ThemedView>
@@ -81,10 +68,7 @@ export default function Goals() {
             onChangeText={setTarget}
           />
         </ThemedView>
-        <Pressable
-          style={[styles.button, createMutation.isPending && styles.buttonDisabled]}
-          disabled={createMutation.isPending}
-          onPress={handleAdd}>
+        <Pressable style={styles.button} onPress={handleAdd}>
           <ThemedText style={styles.buttonText}>Add Goal</ThemedText>
         </Pressable>
       </ThemedView>
