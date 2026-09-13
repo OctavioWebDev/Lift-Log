@@ -5,15 +5,21 @@ import { ThemedView } from "@/components/themed-view";
 import { SyncStatusBanner } from "@/components/sync-status-banner";
 import { useSession } from "@/lib/auth-context";
 import { useOfflineResource } from "@/lib/offline/use-offline-resource";
+import { useRestTimer } from "@/lib/use-rest-timer";
+import { scheduleLocalNotification } from "@/lib/notifications";
 import { formatDisplayDate, shiftISODate, todayISODate } from "@/lib/date";
-import type { WorkoutSet } from "@/lib/types";
+import type { Goal, WorkoutSet } from "@/lib/types";
 import { screenStyles as styles } from "@/styles/screen";
+
+const REST_SECONDS = 90;
 
 export default function WorkoutLog() {
   const { user } = useSession();
   const [date, setDate] = useState(todayISODate());
   const { data: allWorkouts, isLoading, create, remove } = useOfflineResource<WorkoutSet>("workoutSets", user?.id);
+  const { data: goals } = useOfflineResource<Goal>("goals", user?.id);
   const workouts = allWorkouts.filter((w) => w.date.startsWith(date));
+  const restTimer = useRestTimer();
 
   const [exercise, setExercise] = useState("");
   const [sets, setSets] = useState("3");
@@ -23,10 +29,13 @@ export default function WorkoutLog() {
 
   async function handleAdd() {
     if (!exercise.trim() || !weight || !reps) return;
+    const weightNum = Number(weight);
+    const exerciseName = exercise.trim();
+
     await create({
-      exercise: exercise.trim(),
+      exercise: exerciseName,
       sets: Number(sets) || 1,
-      weight: Number(weight),
+      weight: weightNum,
       reps: Number(reps),
       rpe: rpe ? Number(rpe) : undefined,
       date: `${date}T12:00:00.000Z`,
@@ -35,6 +44,13 @@ export default function WorkoutLog() {
     setWeight("");
     setReps("");
     setRpe("");
+
+    restTimer.start(REST_SECONDS);
+
+    const matchingGoal = goals.find((g) => g.exercise.toLowerCase() === exerciseName.toLowerCase());
+    if (matchingGoal && weightNum >= matchingGoal.target) {
+      scheduleLocalNotification("New PR! 🎉", `You hit your ${exerciseName} goal of ${matchingGoal.target} ${matchingGoal.unit ?? "lbs"}!`);
+    }
   }
 
   return (
@@ -49,6 +65,17 @@ export default function WorkoutLog() {
           <ThemedText>{"Next >"}</ThemedText>
         </Pressable>
       </ThemedView>
+
+      {restTimer.secondsLeft !== null && (
+        <ThemedView style={styles.restTimer}>
+          <ThemedText type="smallBold">Resting: {restTimer.secondsLeft}s</ThemedText>
+          <Pressable onPress={restTimer.cancel}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Skip
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+      )}
 
       <FlatList<WorkoutSet & { clientId: string }>
         data={workouts}

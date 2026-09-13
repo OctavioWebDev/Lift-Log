@@ -50,6 +50,24 @@ export const refreshTokens = sqliteTable("refresh_tokens", {
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 
 // ============================================================================
+// PUSH TOKENS TABLE (mobile push notifications)
+// ============================================================================
+export const pushTokens = sqliteTable("push_tokens", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id),
+  // Expo push token, e.g. "ExponentPushToken[xxxxxxxx]" — unique per device+app
+  // install, so re-registering the same device under a different account moves
+  // ownership rather than creating a duplicate row (see storage.upsertPushToken).
+  token: text("token").notNull().unique(),
+  platform: text("platform"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export type PushToken = typeof pushTokens.$inferSelect;
+
+// ============================================================================
 // WORKOUT SETS TABLE
 // ============================================================================
 // shared/schema.ts

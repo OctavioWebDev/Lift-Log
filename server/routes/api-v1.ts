@@ -172,6 +172,37 @@ export function registerApiV1Routes(app: Express) {
   });
 
   // ==========================================================================
+  // PUSH TOKENS
+  // ==========================================================================
+  app.post(`${base}/push-tokens`, requireApiAuth, async (req, res) => {
+    try {
+      const { token, platform } = req.body ?? {};
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "token is required" });
+      }
+      await storage.upsertPushToken(req.userId!, token, platform ?? null);
+      res.status(204).send();
+    } catch (error) {
+      console.error("API error registering push token:", error);
+      res.status(500).json({ message: "Failed to register push token" });
+    }
+  });
+
+  app.delete(`${base}/push-tokens`, requireApiAuth, async (req, res) => {
+    try {
+      const { token } = req.body ?? {};
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "token is required" });
+      }
+      await storage.deletePushToken(token);
+      res.status(204).send();
+    } catch (error) {
+      console.error("API error deleting push token:", error);
+      res.status(500).json({ message: "Failed to delete push token" });
+    }
+  });
+
+  // ==========================================================================
   // WORKOUT SETS
   // ==========================================================================
   app.get(`${base}/workout-sets`, requireApiAuth, requireApiSubscription, async (req, res) => {

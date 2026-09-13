@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider, useSession } from "@/lib/auth-context";
 import { SplashScreenController } from "@/lib/splash-controller";
 import { SyncProvider } from "@/lib/offline/sync-provider";
+import { PushNotificationsRegistrar } from "@/lib/push-provider";
 
 const queryClient = new QueryClient();
 
@@ -11,6 +12,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
         <SplashScreenController />
+        <PushNotificationsRegistrar />
         <SyncProvider>
           <RootNavigator />
         </SyncProvider>

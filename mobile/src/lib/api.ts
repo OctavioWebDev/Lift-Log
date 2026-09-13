@@ -84,6 +84,12 @@ export const api = {
   billing: {
     status: () => request<BillingStatus>("/api/v1/billing/status"),
   },
+  pushTokens: {
+    register: (token: string, platform: string) =>
+      request<void>("/api/v1/push-tokens", json({ token, platform })),
+    unregister: (token: string) =>
+      request<void>("/api/v1/push-tokens", { method: "DELETE", body: JSON.stringify({ token }) }),
+  },
   workoutSets: {
     forDate: (date: string) => request<WorkoutSet[]>(`/api/v1/workout-sets?date=${date}`),
     all: () => request<WorkoutSet[]>("/api/v1/workout-sets/all"),

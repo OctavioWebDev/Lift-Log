@@ -12,12 +12,14 @@ import {
   type NutritionGoal,
   type InsertNutritionGoal,
   type RefreshToken,
+  type PushToken,
   users,
   workoutSets,
   goals,
   nutritionLogs,
   nutritionGoals,
   refreshTokens,
+  pushTokens,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
@@ -70,6 +72,11 @@ export interface IStorage {
   getRefreshToken(id: string): Promise<RefreshToken | undefined>;
   revokeRefreshToken(id: string): Promise<void>;
   revokeAllUserRefreshTokens(userId: string): Promise<void>;
+
+  // Push token methods (mobile push notifications)
+  upsertPushToken(userId: string, token: string, platform: string | null): Promise<PushToken>;
+  deletePushToken(token: string): Promise<void>;
+  getAllPushTokens(): Promise<PushToken[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -311,6 +318,28 @@ export class DatabaseStorage implements IStorage {
       .update(refreshTokens)
       .set({ revokedAt: new Date() })
       .where(eq(refreshTokens.userId, userId));
+  }
+
+  // ─── Push Token Methods ────────────────────────────────────────────────────────
+
+  async upsertPushToken(userId: string, token: string, platform: string | null): Promise<PushToken> {
+    const [row] = await db
+      .insert(pushTokens)
+      .values({ userId, token, platform })
+      .onConflictDoUpdate({
+        target: pushTokens.token,
+        set: { userId, platform },
+      })
+      .returning();
+    return row;
+  }
+
+  async deletePushToken(token: string): Promise<void> {
+    await db.delete(pushTokens).where(eq(pushTokens.token, token));
+  }
+
+  async getAllPushTokens(): Promise<PushToken[]> {
+    return db.select().from(pushTokens);
   }
 
 }
