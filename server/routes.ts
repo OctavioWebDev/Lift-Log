@@ -8,6 +8,8 @@ import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, is
 import { stripe, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
 import { requireSubscription } from "./middleware/subscription";
 import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
+import { searchFoods } from "./food";
+import { registerApiV1Routes } from "./routes/api-v1";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -18,6 +20,11 @@ export async function registerRoutes(
   // AUTHENTICATION MIDDLEWARE
   // ============================================================================
   app.use(attachUser);
+
+  // ============================================================================
+  // MOBILE JSON API (JWT-authenticated, versioned)
+  // ============================================================================
+  registerApiV1Routes(app);
 
   // ============================================================================
   // PUBLIC LANDING PAGE
@@ -542,28 +549,8 @@ export async function registerRoutes(
 
   // Food search proxy — USDA FoodData Central
   app.get("/api/food/search", requireAuth, async (req, res) => {
-    const q = (req.query.q as string || "").trim();
-    if (!q) return res.json([]);
     try {
-      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${process.env.USDA_API_KEY}&dataType=Branded&pageSize=20`;
-      const response = await fetch(url);
-      const data = await response.json() as any;
-      const results = (data.foods || [])
-        .filter((f: any) => f.description && f.foodNutrients?.length)
-        .map((f: any) => {
-          const nutrient = (name: string) =>
-            f.foodNutrients.find((n: any) => n.nutrientName === name)?.value || 0;
-          const gramsPerServing = f.servingSize || 100;
-          return {
-            name: f.description,
-            brand: f.brandOwner || f.brandName || "",
-            gramsPerServing,
-            calories: Math.round(nutrient("Energy")),
-            protein: Math.round(nutrient("Protein") * 10) / 10,
-            carbs: Math.round(nutrient("Carbohydrate, by difference") * 10) / 10,
-            fat: Math.round(nutrient("Total lipid (fat)") * 10) / 10,
-          };
-        });
+      const results = await searchFoods(req.query.q as string || "");
       res.json(results);
     } catch (error) {
       console.error("Food search error:", error);

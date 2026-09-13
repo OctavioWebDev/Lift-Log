@@ -42,7 +42,7 @@ npm install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env and add your SESSION_SECRET
+# Edit .env and add your SESSION_SECRET, JWT_ACCESS_SECRET, and JWT_REFRESH_SECRET
 
 # Initialize database
 npm run db:push
@@ -163,6 +163,33 @@ Chi-Rho Lifts/
 - `PATCH /api/goals/:exercise` - Update goal
 - `DELETE /api/goals/:id` - Delete goal
 
+### Mobile JSON API (`/api/v1`)
+
+A separate, versioned, JWT-authenticated JSON API for the upcoming mobile app. It reuses the same
+storage layer and Zod schemas as the web app, but never redirects or renders HTML — every response
+is JSON, and auth is via `Authorization: Bearer <accessToken>` instead of cookies.
+
+- `POST /api/v1/auth/signup` - Create account, returns `{ user, accessToken, refreshToken }`
+- `POST /api/v1/auth/login` - Returns `{ user, accessToken, refreshToken }`
+- `POST /api/v1/auth/refresh` - Exchange a refresh token for a new pair (rotates the old one out)
+- `POST /api/v1/auth/logout` - Revokes a refresh token
+- `GET /api/v1/auth/me` - Current user + subscription status (requires access token)
+- `GET /api/v1/billing/status` - Subscription status/interval/period end
+- `GET /api/v1/workout-sets` / `GET /api/v1/workout-sets/all` - List workouts
+- `POST /api/v1/workout-sets` / `PUT /api/v1/workout-sets/:id` / `DELETE /api/v1/workout-sets/:id`
+- `GET /api/v1/goals` / `POST /api/v1/goals` / `PATCH /api/v1/goals/:exercise` / `DELETE /api/v1/goals/:id`
+- `GET /api/v1/nutrition` / `POST /api/v1/nutrition` / `DELETE /api/v1/nutrition/:id`
+- `POST /api/v1/nutrition/goals`
+- `GET /api/v1/food/search?q=...`
+
+All `/api/v1` data routes (workouts, goals, nutrition) require an active subscription and respond
+`402` if one isn't present, so the mobile app can distinguish "not logged in" (`401`) from
+"logged in but needs to subscribe" (`402`).
+
+Access tokens are short-lived (15 minutes); refresh tokens are long-lived (30 days) and rotate on
+every use — each refresh token is single-use and tracked server-side in the `refresh_tokens` table
+so a specific device/session can be revoked without invalidating everyone else's.
+
 ## 🎨 Design Philosophy
 
 **No BS. Just Strength.**
@@ -181,8 +208,12 @@ No supplement pitches. No unnecessary features. No dependency-creating complexit
 ```env
 PORT=3000
 SESSION_SECRET=your-secret-key-change-this
+JWT_ACCESS_SECRET=your-access-token-secret
+JWT_REFRESH_SECRET=your-refresh-token-secret
 NODE_ENV=production
 ```
+
+See `.env.example` for the full list, including Stripe and USDA keys.
 
 ### Deploy to Render/Railway/Fly.io
 

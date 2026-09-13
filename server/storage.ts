@@ -11,11 +11,13 @@ import {
   type InsertNutritionLog,
   type NutritionGoal,
   type InsertNutritionGoal,
+  type RefreshToken,
   users,
   workoutSets,
   goals,
   nutritionLogs,
   nutritionGoals,
+  refreshTokens,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
@@ -62,6 +64,12 @@ export interface IStorage {
   // Nutrition goal methods
   getNutritionGoal(userId: string): Promise<NutritionGoal | undefined>;
   upsertNutritionGoal(goal: InsertNutritionGoal): Promise<NutritionGoal>;
+
+  // Refresh token methods (mobile JWT auth)
+  createRefreshToken(userId: string, expiresAt: Date): Promise<RefreshToken>;
+  getRefreshToken(id: string): Promise<RefreshToken | undefined>;
+  revokeRefreshToken(id: string): Promise<void>;
+  revokeAllUserRefreshTokens(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -256,6 +264,35 @@ export class DatabaseStorage implements IStorage {
     }
     const [created] = await db.insert(nutritionGoals).values(goal).returning();
     return created;
+  }
+
+  // ─── Refresh Token Methods ────────────────────────────────────────────────────
+
+  async createRefreshToken(userId: string, expiresAt: Date): Promise<RefreshToken> {
+    const [token] = await db
+      .insert(refreshTokens)
+      .values({ userId, expiresAt })
+      .returning();
+    return token;
+  }
+
+  async getRefreshToken(id: string): Promise<RefreshToken | undefined> {
+    const [token] = await db.select().from(refreshTokens).where(eq(refreshTokens.id, id));
+    return token || undefined;
+  }
+
+  async revokeRefreshToken(id: string): Promise<void> {
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(refreshTokens.id, id));
+  }
+
+  async revokeAllUserRefreshTokens(userId: string): Promise<void> {
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(refreshTokens.userId, userId));
   }
 
 }
