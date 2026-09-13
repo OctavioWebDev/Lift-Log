@@ -4,6 +4,7 @@ import { SessionProvider, useSession } from "@/lib/auth-context";
 import { SplashScreenController } from "@/lib/splash-controller";
 import { SyncProvider } from "@/lib/offline/sync-provider";
 import { PushNotificationsRegistrar } from "@/lib/push-provider";
+import { BillingInitializer } from "@/lib/billing/billing-provider";
 
 const queryClient = new QueryClient();
 
@@ -13,6 +14,7 @@ export default function RootLayout() {
       <SessionProvider>
         <SplashScreenController />
         <PushNotificationsRegistrar />
+        <BillingInitializer />
         <SyncProvider>
           <RootNavigator />
         </SyncProvider>

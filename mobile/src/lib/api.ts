@@ -83,6 +83,8 @@ export const api = {
   },
   billing: {
     status: () => request<BillingStatus>("/api/v1/billing/status"),
+    createCheckoutSession: (redirectUrl: string) =>
+      request<{ url: string }>("/api/v1/billing/checkout", json({ redirectUrl })),
   },
   pushTokens: {
     register: (token: string, platform: string) =>

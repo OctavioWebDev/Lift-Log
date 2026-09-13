@@ -32,12 +32,12 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
   updateUserSubscription(id: string, data: Partial<{
-    trialEndsAt: Date;
+    trialEndsAt: Date | null;
     subscriptionStatus: string;
-    subscriptionInterval: string;
+    subscriptionInterval: string | null;
     stripeCustomerId: string;
     stripeSubscriptionId: string;
-    currentPeriodEndsAt: Date;
+    currentPeriodEndsAt: Date | null;
   }>): Promise<User | undefined>;
 
   // Workout methods — all scoped by userId
@@ -112,7 +112,7 @@ export class DatabaseStorage implements IStorage {
   async updateUserSubscription(id: string, data: Partial<{
     trialEndsAt: Date | null;
     subscriptionStatus: string;
-    subscriptionInterval: string;
+    subscriptionInterval: string | null;
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
     currentPeriodEndsAt: Date | null;
