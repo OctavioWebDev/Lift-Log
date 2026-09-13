@@ -18,6 +18,7 @@ declare global {
         username: string;
         email: string | null;
         isAdmin: boolean;
+        mustChangePassword: boolean;
       };
       userId?: string; // set by requireApiAuth for token-authenticated (mobile) requests
     }
@@ -44,6 +45,7 @@ export async function attachUser(req: Request, res: Response, next: NextFunction
         username: user.username,
         email: user.email,
         isAdmin: user.isAdmin || false,  // ← Add this
+        mustChangePassword: user.mustChangePassword || false,
       };
     }
   }
@@ -72,6 +74,17 @@ export function isValidPassword(password: string): { valid: boolean; message?: s
     return { valid: false, message: "Password must be at least 8 characters" };
   }
   return { valid: true };
+}
+
+// Generate a random temp password for admin-created accounts (e.g. comped
+// coaching clients). Excludes visually ambiguous characters (0/O, 1/l/I).
+export function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let password = "";
+  for (let i = 0; i < 10; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return password;
 }
 
 // Validate username

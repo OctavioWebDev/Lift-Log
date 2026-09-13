@@ -85,6 +85,57 @@
           <span class="text-xs sm:text-sm text-brand-600 bg-gray-800 px-2 py-1 rounded"><%= users.length %> users</span>
         </div>
 
+        <!-- Add Coaching Client -->
+        <div class="border border-gray-800 rounded-lg p-4 mb-4">
+          <button
+            type="button"
+            onclick="document.getElementById('add-client-form').classList.toggle('hidden')"
+            class="text-sm font-medium text-yellow-500 hover:text-yellow-400"
+          >
+            + Add Coaching Client (free account)
+          </button>
+
+          <form id="add-client-form" onsubmit="createClient(event)" class="hidden mt-4 space-y-3">
+            <p class="text-xs text-brand-500">
+              Creates a free account (bypasses billing) with a temp password. Give the client
+              the username and temp password shown after creation — they'll be required to set
+              their own password on first login.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium text-brand-700 mb-1">Username</label>
+                <input
+                  type="text"
+                  id="client-username"
+                  required
+                  minlength="3"
+                  maxlength="30"
+                  pattern="[a-zA-Z0-9_-]+"
+                  class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="clientusername"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-brand-700 mb-1">Email (optional)</label>
+                <input
+                  type="email"
+                  id="client-email"
+                  class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="client@example.com"
+                >
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-4 py-2 rounded-lg transition text-sm"
+            >
+              Create Client Account
+            </button>
+            <div id="client-created" class="hidden bg-green-950 border border-green-900 rounded-lg p-3 text-sm text-green-400"></div>
+            <div id="client-error" class="hidden bg-red-950 border border-red-900 rounded-lg p-3 text-sm text-red-400"></div>
+          </form>
+        </div>
+
         <div class="space-y-3">
           <% if (users.length === 0) { %>
             <p class="text-center text-brand-600 py-8">No users yet.</p>
@@ -97,6 +148,12 @@
                       <h3 class="font-bold text-brand-900 truncate"><%= user.username %></h3>
                       <% if (user.isAdmin) { %>
                         <span class="text-xs bg-yellow-500 text-black px-2 py-0.5 rounded">Admin</span>
+                      <% } %>
+                      <% if (!user.isAdmin && user.subscriptionInterval === 'lifetime') { %>
+                        <span class="text-xs bg-gray-700 text-brand-900 px-2 py-0.5 rounded">Free (Coaching)</span>
+                      <% } %>
+                      <% if (user.mustChangePassword) { %>
+                        <span class="text-xs bg-yellow-900 text-yellow-400 px-2 py-0.5 rounded">Temp Password</span>
                       <% } %>
                     </div>
                     <% if (user.email) { %>
@@ -295,6 +352,43 @@ function showTab(tabName) {
   const button = document.getElementById(`tab-${tabName}`);
   button.classList.add('border-yellow-500', 'text-brand-900');
   button.classList.remove('border-transparent', 'text-brand-600');
+}
+
+// Create a free coaching-client account
+async function createClient(event) {
+  event.preventDefault();
+  const usernameInput = document.getElementById('client-username');
+  const emailInput = document.getElementById('client-email');
+  const createdEl = document.getElementById('client-created');
+  const errorEl = document.getElementById('client-error');
+  createdEl.classList.add('hidden');
+  errorEl.classList.add('hidden');
+
+  try {
+    const response = await fetch('/admin/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: usernameInput.value.trim(),
+        email: emailInput.value.trim() || undefined,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      errorEl.textContent = data.message || 'Failed to create client account';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    createdEl.innerHTML = `Account created. Give the client these credentials — shown only once:<br>` +
+      `<strong>Username:</strong> ${data.username}<br>` +
+      `<strong>Temp Password:</strong> ${data.tempPassword}`;
+    createdEl.classList.remove('hidden');
+    usernameInput.value = '';
+    emailInput.value = '';
+  } catch (error) {
+    errorEl.textContent = 'Error creating client account';
+    errorEl.classList.remove('hidden');
+  }
 }
 
 // Delete user
