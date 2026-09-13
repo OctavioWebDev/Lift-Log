@@ -22,9 +22,10 @@
         <select id="exercise-select"
           class="w-full sm:w-64 bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500">
           <% exercises.forEach(function(ex) { %>
-            <option value="<%= ex %>"><%= ex %></option>
+            <option value="<%= ex %>" <%= ex === defaultExercise ? 'selected' : '' %>><%= ex %></option>
           <% }); %>
         </select>
+        <span id="strongest-badge" class="hidden text-xs font-medium text-yellow-500 whitespace-nowrap">🏆 Your strongest lift</span>
       </div>
 
       <div class="grid grid-cols-3 gap-4 mb-4">
@@ -155,10 +156,24 @@
     });
   }
 
+  const defaultExercise = <%- JSON.stringify(defaultExercise || null) %>;
   const select = document.getElementById('exercise-select');
+  const strongestBadge = document.getElementById('strongest-badge');
+
+  function updateStrongestBadge() {
+    if (!strongestBadge) return;
+    strongestBadge.classList.toggle('hidden', !defaultExercise || select.value !== defaultExercise);
+  }
+
   if (select) {
-    select.addEventListener('change', () => loadExercise(select.value));
-    if (select.value) loadExercise(select.value);
+    select.addEventListener('change', () => {
+      loadExercise(select.value);
+      updateStrongestBadge();
+    });
+    if (select.value) {
+      loadExercise(select.value);
+      updateStrongestBadge();
+    }
   }
 </script>
 

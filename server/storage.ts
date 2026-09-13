@@ -85,6 +85,7 @@ export interface IStorage {
 
   // Progress / chart methods
   getExerciseNames(userId: string): Promise<string[]>;
+  getStrongestExercise(userId: string): Promise<string | undefined>;
   getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]>;
   getWorkoutDatesInRange(userId: string, days: number): Promise<string[]>;
   getNutritionHistory(userId: string, days: number): Promise<Array<{
@@ -363,6 +364,25 @@ export class DatabaseStorage implements IStorage {
       .from(workoutSets)
       .where(eq(workoutSets.userId, userId));
     return Array.from(new Set(rows.map((r) => r.exercise))).sort();
+  }
+
+  async getStrongestExercise(userId: string): Promise<string | undefined> {
+    const rows = await db
+      .select({ exercise: workoutSets.exercise, weight: workoutSets.weight, reps: workoutSets.reps })
+      .from(workoutSets)
+      .where(eq(workoutSets.userId, userId));
+
+    let best: string | undefined;
+    let bestOneRepMax = -Infinity;
+    for (const row of rows) {
+      // Epley formula, matching /api/stats/exercise-history's PR calculation.
+      const estimatedOneRepMax = row.weight * (1 + row.reps / 30);
+      if (estimatedOneRepMax > bestOneRepMax) {
+        bestOneRepMax = estimatedOneRepMax;
+        best = row.exercise;
+      }
+    }
+    return best;
   }
 
   async getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]> {
