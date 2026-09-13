@@ -144,6 +144,9 @@
                       </p>
                       <% } %>
                   </div>
+                  <a href="/account/change-password" class="block px-4 py-2 text-sm text-brand-700 hover:bg-gray-800 hover:text-yellow-400">
+                    Change Password
+                  </a>
                   <form action="/logout" method="POST">
                     <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800">
                       Sign Out
@@ -176,6 +179,10 @@
                   <%= user.username %>
                     <% } %>
               </div>
+              <a href="/account/change-password"
+                class="block px-3 py-2 text-brand-700 hover:bg-gray-800 hover:text-yellow-400 rounded-lg font-medium">
+                Change Password
+              </a>
               <form action="/logout" method="POST">
                 <button type="submit"
                   class="w-full text-left px-3 py-2 text-red-400 hover:bg-gray-800 rounded-lg text-sm font-medium">

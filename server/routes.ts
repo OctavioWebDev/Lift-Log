@@ -5,7 +5,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema, insertNutritionLogSchema, insertNutritionGoalSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
-import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, isValidPassword, isValidUsername } from "./auth";
+import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, isValidPassword, isValidUsername, generateTempPassword } from "./auth";
 import { stripe, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
 import { requireSubscription } from "./middleware/subscription";
 import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
@@ -21,6 +21,22 @@ export async function registerRoutes(
   // AUTHENTICATION MIDDLEWARE
   // ============================================================================
   app.use(attachUser);
+
+  // Comped coaching-client accounts are created with a temp password and
+  // must set their own before using the rest of the web app. Mobile/API
+  // requests are left alone — this only gates full-page navigations.
+  app.use((req, res, next) => {
+    if (
+      req.user?.mustChangePassword &&
+      req.method === "GET" &&
+      !req.path.startsWith("/account/change-password") &&
+      !req.path.startsWith("/api") &&
+      !req.path.startsWith("/logout")
+    ) {
+      return res.redirect("/account/change-password");
+    }
+    next();
+  });
 
   // ============================================================================
   // MOBILE JSON API (JWT-authenticated, versioned)
@@ -73,6 +89,9 @@ export async function registerRoutes(
         return res.render("login", { error: "Invalid username or password" });
       }
       req.session!.userId! = user.id;
+      if (user.mustChangePassword) {
+        return res.redirect("/account/change-password");
+      }
       res.redirect("/app");
     } catch (error) {
       console.error("Login error:", error);
@@ -142,6 +161,59 @@ export async function registerRoutes(
     req.session?.destroy(() => {
       res.redirect("/");
     });
+  });
+
+  app.get("/account/change-password", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session!.userId!);
+    if (!user) return res.redirect("/login");
+    res.render("change-password", {
+      title: "Change Password - Chi-Rho Lifts",
+      user: req.user,
+      forced: user.mustChangePassword,
+      error: null,
+    });
+  });
+
+  app.post("/account/change-password", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session!.userId!);
+      if (!user) return res.redirect("/login");
+
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+      const renderError = (error: string) => res.render("change-password", {
+        title: "Change Password - Chi-Rho Lifts",
+        user: req.user,
+        forced: user.mustChangePassword,
+        error,
+      });
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return renderError("All fields are required");
+      }
+      const isValid = await verifyPassword(currentPassword, user.passwordHash);
+      if (!isValid) {
+        return renderError("Current password is incorrect");
+      }
+      const passwordValidation = isValidPassword(newPassword);
+      if (!passwordValidation.valid) {
+        return renderError(passwordValidation.message!);
+      }
+      if (newPassword !== confirmPassword) {
+        return renderError("New passwords do not match");
+      }
+
+      const passwordHash = await hashPassword(newPassword);
+      await storage.updateUser(user.id, { passwordHash, mustChangePassword: false });
+      res.redirect("/app");
+    } catch (error) {
+      console.error("Change password error:", error);
+      res.render("change-password", {
+        title: "Change Password - Chi-Rho Lifts",
+        user: req.user,
+        forced: false,
+        error: "An error occurred. Please try again.",
+      });
+    }
   });
 
   // ============================================================================
@@ -312,6 +384,47 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Create a free (comped) coaching-client account with a temp password.
+  // The temp password is returned once in the response — it is never stored
+  // in plaintext and isn't retrievable afterward.
+  app.post("/admin/clients", requireAuth, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.session!.userId!);
+      if (!currentUser?.isAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { username, email } = req.body;
+      if (!username) {
+        return res.status(400).json({ message: "Username is required" });
+      }
+      const usernameValidation = isValidUsername(username);
+      if (!usernameValidation.valid) {
+        return res.status(400).json({ message: usernameValidation.message });
+      }
+      if (email && !isValidEmail(email)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+
+      const tempPassword = generateTempPassword();
+      const passwordHash = await hashPassword(tempPassword);
+      const user = await storage.createClientAccount({
+        username,
+        email: email || null,
+        passwordHash,
+      });
+
+      res.json({ username: user.username, tempPassword });
+    } catch (error) {
+      console.error("Error creating client account:", error);
+      res.status(500).json({ message: "Failed to create client account" });
     }
   });
 

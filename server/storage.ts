@@ -32,6 +32,9 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  // Admin-created free account (e.g. a comped coaching client) — gets
+  // lifetime access and must change the given temp password on first login.
+  createClientAccount(data: { username: string; email: string | null; passwordHash: string }): Promise<User>;
   deleteUser(id: string): Promise<void>;
   updateUserSubscription(id: string, data: Partial<{
     trialEndsAt: Date | null;
@@ -40,6 +43,10 @@ export interface IStorage {
     stripeCustomerId: string;
     stripeSubscriptionId: string;
     currentPeriodEndsAt: Date | null;
+  }>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<{
+    passwordHash: string;
+    mustChangePassword: boolean;
   }>): Promise<User | undefined>;
 
   // Workout methods — all scoped by userId
@@ -134,6 +141,19 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async createClientAccount(data: { username: string; email: string | null; passwordHash: string }): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...data,
+        subscriptionStatus: "active",
+        subscriptionInterval: "lifetime",
+        mustChangePassword: true,
+      })
+      .returning();
+    return user;
+  }
+
   async deleteUser(id: string): Promise<void> {
     await db.delete(users).where(eq(users.id, id));
   }
@@ -145,6 +165,18 @@ export class DatabaseStorage implements IStorage {
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
     currentPeriodEndsAt: Date | null;
+  }>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async updateUser(id: string, data: Partial<{
+    passwordHash: string;
+    mustChangePassword: boolean;
   }>): Promise<User | undefined> {
     const [user] = await db
       .update(users)

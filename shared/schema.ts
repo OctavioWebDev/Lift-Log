@@ -12,6 +12,9 @@ export const users = sqliteTable("users", {
   email: text("email"),
   passwordHash: text("password_hash").notNull(),
   isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
+  // Set on accounts an admin creates with a temp password (e.g. comped
+  // coaching clients); forces a password change on next login.
+  mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
