@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import express from "express";
+import cors from "cors";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertWorkoutSetSchema, updateWorkoutSetSchema, insertGoalSchema, updateGoalSchema, insertNutritionLogSchema, insertNutritionGoalSchema } from "@shared/schema";
@@ -8,6 +9,8 @@ import { requireAuth, attachUser, hashPassword, verifyPassword, isValidEmail, is
 import { stripe, ANNUAL_PRICE_ID, getSubscriptionStatus } from "./stripe";
 import { requireSubscription } from "./middleware/subscription";
 import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
+import { searchFoods } from "./food";
+import { registerApiV1Routes } from "./routes/api-v1";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -20,6 +23,16 @@ export async function registerRoutes(
   app.use(attachUser);
 
   // ============================================================================
+  // MOBILE JSON API (JWT-authenticated, versioned)
+  // ============================================================================
+  // Open CORS here only — the mobile client authenticates with a Bearer token
+  // (never cookies), so there's no CSRF-relevant credential to protect by
+  // restricting origins. The cookie-authenticated web app routes below are
+  // unaffected since same-origin requests never trigger CORS checks.
+  app.use("/api/v1", cors());
+  registerApiV1Routes(app);
+
+  // ============================================================================
   // PUBLIC LANDING PAGE
   // ============================================================================
   app.get("/", async (req, res) => {
@@ -27,7 +40,7 @@ export async function registerRoutes(
       return res.redirect("/app");
     }
     res.render("landing", {
-      title: "Lift-Log - Track Your Progress, Build Real Strength"
+      title: "Chi-Rho Lifts - Track Your Progress, Build Real Strength"
     });
   });
 
@@ -141,7 +154,7 @@ export async function registerRoutes(
       const goals = await storage.getAllGoals(req.session!.userId!);
 
       res.render("workout-log", {
-        title: "Workout Log - Lift-Log",
+        title: "Workout Log - Chi-Rho Lifts",
         workouts,
         goals,
         date,
@@ -178,7 +191,7 @@ export async function registerRoutes(
       };
       const recentWorkouts = allWorkouts.slice(0, 10);
       res.render("dashboard", {
-        title: "Dashboard - Lift-Log",
+        title: "Dashboard - Chi-Rho Lifts",
         stats,
         recentWorkouts,
         goals,
@@ -194,7 +207,7 @@ export async function registerRoutes(
     try {
       const goals = await storage.getAllGoals(req.session!.userId!);
       res.render("goals", {
-        title: "Goals - Lift-Log",
+        title: "Goals - Chi-Rho Lifts",
         goals,
         user: req.user
       });
@@ -230,7 +243,7 @@ export async function registerRoutes(
         activeToday: activeToday,
       };
       res.render("admin", {
-        title: "Admin Panel - Lift-Log",
+        title: "Admin Panel - Chi-Rho Lifts",
         users,
         recentWorkouts: allWorkouts.slice(0, 50),
         allGoals,
@@ -269,7 +282,7 @@ export async function registerRoutes(
     if (!user) return res.redirect("/login");
     const status = getSubscriptionStatus(user);
     res.render("billing", {
-      title: "Billing - Lift-Log",
+      title: "Billing - Chi-Rho Lifts",
       user,
       status,
       periodEndsAt: user.currentPeriodEndsAt,
@@ -299,7 +312,7 @@ export async function registerRoutes(
 
   app.get("/billing/success", requireAuth, async (req, res) => {
     res.render("billing-success", {
-      title: "Subscription Active - Lift-Log",
+      title: "Subscription Active - Chi-Rho Lifts",
       user: req.user,
     });
   });
@@ -312,7 +325,7 @@ export async function registerRoutes(
         cancel_at_period_end: true,
       });
       res.render("billing-cancel", {
-        title: "Subscription Cancelled - Lift-Log",
+        title: "Subscription Cancelled - Chi-Rho Lifts",
         user: req.user,
       });
     } catch (error) {
@@ -527,7 +540,7 @@ export async function registerRoutes(
         { calories: 0, protein: 0, carbs: 0, fat: 0 }
       );
       res.render("nutrition", {
-        title: "Nutrition - Lift-Log",
+        title: "Nutrition - Chi-Rho Lifts",
         user: req.user,
         logs,
         goal: goal || { calories: 2000, protein: 150, carbs: 200, fat: 65 },
@@ -542,28 +555,8 @@ export async function registerRoutes(
 
   // Food search proxy — USDA FoodData Central
   app.get("/api/food/search", requireAuth, async (req, res) => {
-    const q = (req.query.q as string || "").trim();
-    if (!q) return res.json([]);
     try {
-      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${process.env.USDA_API_KEY}&dataType=Branded&pageSize=20`;
-      const response = await fetch(url);
-      const data = await response.json() as any;
-      const results = (data.foods || [])
-        .filter((f: any) => f.description && f.foodNutrients?.length)
-        .map((f: any) => {
-          const nutrient = (name: string) =>
-            f.foodNutrients.find((n: any) => n.nutrientName === name)?.value || 0;
-          const gramsPerServing = f.servingSize || 100;
-          return {
-            name: f.description,
-            brand: f.brandOwner || f.brandName || "",
-            gramsPerServing,
-            calories: Math.round(nutrient("Energy")),
-            protein: Math.round(nutrient("Protein") * 10) / 10,
-            carbs: Math.round(nutrient("Carbohydrate, by difference") * 10) / 10,
-            fat: Math.round(nutrient("Total lipid (fat)") * 10) / 10,
-          };
-        });
+      const results = await searchFoods(req.query.q as string || "");
       res.json(results);
     } catch (error) {
       console.error("Food search error:", error);

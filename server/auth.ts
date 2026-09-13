@@ -19,6 +19,7 @@ declare global {
         email: string | null;
         isAdmin: boolean;
       };
+      userId?: string; // set by requireApiAuth for token-authenticated (mobile) requests
     }
   }
 }

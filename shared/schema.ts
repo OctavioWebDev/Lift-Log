@@ -35,6 +35,21 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // ============================================================================
+// REFRESH TOKENS TABLE (mobile JWT auth)
+// ============================================================================
+export const refreshTokens = sqliteTable("refresh_tokens", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  revokedAt: integer("revoked_at", { mode: "timestamp" }),
+});
+
+export type RefreshToken = typeof refreshTokens.$inferSelect;
+
+// ============================================================================
 // WORKOUT SETS TABLE
 // ============================================================================
 // shared/schema.ts
@@ -48,6 +63,10 @@ export const workoutSets = sqliteTable("workout_sets", {
   reps: integer("reps").notNull(),
   rpe: real("rpe"),
   date: integer("date", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
 });
 
 export const insertWorkoutSetSchema = createInsertSchema(workoutSets, {
@@ -84,6 +103,10 @@ export const goals = sqliteTable("goals", {
   current: integer("current").notNull(),
   target: integer("target").notNull(),
   unit: text("unit").notNull().default("lbs"),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
 }, (table) => ({
   userExerciseUnique: uniqueIndex("goals_user_exercise_unique").on(table.userId, table.exercise),
 }));
@@ -121,6 +144,10 @@ export const nutritionLogs = sqliteTable("nutrition_logs", {
   protein: real("protein").notNull().default(0),
   carbs: real("carbs").notNull().default(0),
   fat: real("fat").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
 });
 
 export const insertNutritionLogSchema = createInsertSchema(nutritionLogs, {
@@ -144,6 +171,10 @@ export const nutritionGoals = sqliteTable("nutrition_goals", {
   protein: real("protein").notNull().default(150),
   carbs: real("carbs").notNull().default(200),
   fat: real("fat").notNull().default(65),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
 });
 
 export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals, {
