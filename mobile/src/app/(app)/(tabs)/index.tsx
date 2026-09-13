@@ -7,6 +7,8 @@ import { useSession } from "@/lib/auth-context";
 import { useOfflineResource } from "@/lib/offline/use-offline-resource";
 import { useRestTimer } from "@/lib/use-rest-timer";
 import { scheduleLocalNotification } from "@/lib/notifications";
+import { useHealthSyncSetting } from "@/lib/health/use-health-sync-setting";
+import { healthSync } from "@/lib/health";
 import { formatDisplayDate, shiftISODate, todayISODate } from "@/lib/date";
 import type { Goal, WorkoutSet } from "@/lib/types";
 import { screenStyles as styles } from "@/styles/screen";
@@ -20,6 +22,7 @@ export default function WorkoutLog() {
   const { data: goals } = useOfflineResource<Goal>("goals", user?.id);
   const workouts = allWorkouts.filter((w) => w.date.startsWith(date));
   const restTimer = useRestTimer();
+  const { enabled: healthSyncEnabled } = useHealthSyncSetting();
 
   const [exercise, setExercise] = useState("");
   const [sets, setSets] = useState("3");
@@ -30,15 +33,18 @@ export default function WorkoutLog() {
   async function handleAdd() {
     if (!exercise.trim() || !weight || !reps) return;
     const weightNum = Number(weight);
+    const setsNum = Number(sets) || 1;
+    const repsNum = Number(reps);
     const exerciseName = exercise.trim();
+    const setDate = new Date(`${date}T12:00:00.000Z`);
 
     await create({
       exercise: exerciseName,
-      sets: Number(sets) || 1,
+      sets: setsNum,
       weight: weightNum,
-      reps: Number(reps),
+      reps: repsNum,
       rpe: rpe ? Number(rpe) : undefined,
-      date: `${date}T12:00:00.000Z`,
+      date: setDate.toISOString(),
     });
     setExercise("");
     setWeight("");
@@ -46,6 +52,12 @@ export default function WorkoutLog() {
     setRpe("");
 
     restTimer.start(REST_SECONDS);
+
+    if (healthSyncEnabled) {
+      healthSync
+        .syncWorkoutSet({ date: setDate, exercise: exerciseName, sets: setsNum, reps: repsNum, weight: weightNum })
+        .catch((err) => console.warn("[health] failed to sync workout set:", err));
+    }
 
     const matchingGoal = goals.find((g) => g.exercise.toLowerCase() === exerciseName.toLowerCase());
     if (matchingGoal && weightNum >= matchingGoal.target) {

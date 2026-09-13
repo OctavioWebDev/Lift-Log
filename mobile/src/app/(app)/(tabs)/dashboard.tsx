@@ -1,9 +1,10 @@
-import { FlatList, Pressable } from "react-native";
+import { FlatList, Pressable, Switch } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { SyncStatusBanner } from "@/components/sync-status-banner";
 import { useSession } from "@/lib/auth-context";
 import { useOfflineResource } from "@/lib/offline/use-offline-resource";
+import { useHealthSyncSetting } from "@/lib/health/use-health-sync-setting";
 import type { Goal, WorkoutSet } from "@/lib/types";
 import { screenStyles as styles } from "@/styles/screen";
 
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const { user, signOut } = useSession();
   const { data: workouts, isLoading } = useOfflineResource<WorkoutSet>("workoutSets", user?.id);
   const { data: goals } = useOfflineResource<Goal>("goals", user?.id);
+  const health = useHealthSyncSetting();
 
   const weekStart = startOfWeek();
   const workoutsThisWeek = workouts.filter((w) => new Date(w.date) >= weekStart);
@@ -53,6 +55,22 @@ export default function Dashboard() {
             Active Goals
           </ThemedText>
         </ThemedView>
+      </ThemedView>
+
+      <ThemedView style={styles.card}>
+        <ThemedView>
+          <ThemedText style={styles.cardTitle}>Sync to {health.label}</ThemedText>
+          {health.unavailable && (
+            <ThemedText type="small" themeColor="textSecondary">
+              Not available on this device
+            </ThemedText>
+          )}
+        </ThemedView>
+        <Switch
+          value={health.enabled}
+          onValueChange={(next) => void health.setEnabled(next)}
+          disabled={health.unavailable}
+        />
       </ThemedView>
 
       <ThemedText type="smallBold">Recent Activity</ThemedText>
