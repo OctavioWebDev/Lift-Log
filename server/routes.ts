@@ -27,7 +27,7 @@ export async function registerRoutes(
       return res.redirect("/app");
     }
     res.render("landing", {
-      title: "Lift-Log - Track Your Progress, Build Real Strength"
+      title: "Chi-Rho Lifts - Track Your Progress, Build Real Strength"
     });
   });
 
@@ -141,7 +141,7 @@ export async function registerRoutes(
       const goals = await storage.getAllGoals(req.session!.userId!);
 
       res.render("workout-log", {
-        title: "Workout Log - Lift-Log",
+        title: "Workout Log - Chi-Rho Lifts",
         workouts,
         goals,
         date,
@@ -178,7 +178,7 @@ export async function registerRoutes(
       };
       const recentWorkouts = allWorkouts.slice(0, 10);
       res.render("dashboard", {
-        title: "Dashboard - Lift-Log",
+        title: "Dashboard - Chi-Rho Lifts",
         stats,
         recentWorkouts,
         goals,
@@ -194,7 +194,7 @@ export async function registerRoutes(
     try {
       const goals = await storage.getAllGoals(req.session!.userId!);
       res.render("goals", {
-        title: "Goals - Lift-Log",
+        title: "Goals - Chi-Rho Lifts",
         goals,
         user: req.user
       });
@@ -230,7 +230,7 @@ export async function registerRoutes(
         activeToday: activeToday,
       };
       res.render("admin", {
-        title: "Admin Panel - Lift-Log",
+        title: "Admin Panel - Chi-Rho Lifts",
         users,
         recentWorkouts: allWorkouts.slice(0, 50),
         allGoals,
@@ -269,7 +269,7 @@ export async function registerRoutes(
     if (!user) return res.redirect("/login");
     const status = getSubscriptionStatus(user);
     res.render("billing", {
-      title: "Billing - Lift-Log",
+      title: "Billing - Chi-Rho Lifts",
       user,
       status,
       periodEndsAt: user.currentPeriodEndsAt,
@@ -299,7 +299,7 @@ export async function registerRoutes(
 
   app.get("/billing/success", requireAuth, async (req, res) => {
     res.render("billing-success", {
-      title: "Subscription Active - Lift-Log",
+      title: "Subscription Active - Chi-Rho Lifts",
       user: req.user,
     });
   });
@@ -312,7 +312,7 @@ export async function registerRoutes(
         cancel_at_period_end: true,
       });
       res.render("billing-cancel", {
-        title: "Subscription Cancelled - Lift-Log",
+        title: "Subscription Cancelled - Chi-Rho Lifts",
         user: req.user,
       });
     } catch (error) {
@@ -527,7 +527,7 @@ export async function registerRoutes(
         { calories: 0, protein: 0, carbs: 0, fat: 0 }
       );
       res.render("nutrition", {
-        title: "Nutrition - Lift-Log",
+        title: "Nutrition - Chi-Rho Lifts",
         user: req.user,
         logs,
         goal: goal || { calories: 2000, protein: 150, carbs: 200, fat: 65 },

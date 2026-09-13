@@ -1,4 +1,4 @@
-# Lift-Log
+# Chi-Rho Lifts
 
 **Track Your Progress. Build Real Strength.**
 
@@ -35,7 +35,7 @@ A simple, no-nonsense strength training tracker built for lifters who want to fo
 ```bash
 # Clone the repository
 git clone https://github.com/OctavioWebDev/Lift-Log.git
-cd Lift-Log
+cd Lift-Log  # repo slug unchanged; app is now branded Chi-Rho Lifts
 
 # Install dependencies
 npm install
@@ -65,7 +65,7 @@ sqlite3 data/sqlite.db "UPDATE users SET is_admin = 1 WHERE username = 'your_use
 ## 📁 Project Structure
 
 ```
-Lift-Log/
+Chi-Rho Lifts/
 ├── server/
 │   ├── index.ts          # Express server setup
 │   ├── routes.ts         # All application routes
