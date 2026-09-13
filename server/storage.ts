@@ -67,6 +67,18 @@ export interface IStorage {
   getNutritionGoal(userId: string): Promise<NutritionGoal | undefined>;
   upsertNutritionGoal(goal: InsertNutritionGoal): Promise<NutritionGoal>;
 
+  // Progress / chart methods
+  getExerciseNames(userId: string): Promise<string[]>;
+  getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]>;
+  getWorkoutDatesInRange(userId: string, days: number): Promise<string[]>;
+  getNutritionHistory(userId: string, days: number): Promise<Array<{
+    date: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>>;
+
   // Refresh token methods (mobile JWT auth)
   createRefreshToken(userId: string, expiresAt: Date): Promise<RefreshToken>;
   getRefreshToken(id: string): Promise<RefreshToken | undefined>;
@@ -289,6 +301,75 @@ export class DatabaseStorage implements IStorage {
     }
     const [created] = await db.insert(nutritionGoals).values(goal).returning();
     return created;
+  }
+
+  // ─── Progress / Chart Methods ─────────────────────────────────────────────────
+
+  async getExerciseNames(userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ exercise: workoutSets.exercise })
+      .from(workoutSets)
+      .where(eq(workoutSets.userId, userId));
+    return Array.from(new Set(rows.map((r) => r.exercise))).sort();
+  }
+
+  async getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]> {
+    return db
+      .select()
+      .from(workoutSets)
+      .where(and(eq(workoutSets.userId, userId), eq(workoutSets.exercise, exercise)))
+      .orderBy(workoutSets.date);
+  }
+
+  async getWorkoutDatesInRange(userId: string, days: number): Promise<string[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const rows = await db
+      .select({ date: workoutSets.date })
+      .from(workoutSets)
+      .where(and(eq(workoutSets.userId, userId), gte(workoutSets.date, since)));
+    const dates = new Set(
+      rows.map((r) => (r.date instanceof Date ? r.date : new Date(r.date)).toISOString().split("T")[0])
+    );
+    return Array.from(dates);
+  }
+
+  async getNutritionHistory(userId: string, days: number): Promise<Array<{
+    date: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>> {
+    const since = new Date();
+    since.setDate(since.getDate() - (days - 1));
+    since.setHours(0, 0, 0, 0);
+
+    const rows = await db
+      .select()
+      .from(nutritionLogs)
+      .where(and(eq(nutritionLogs.userId, userId), gte(nutritionLogs.date, since)));
+
+    const byDate = new Map<string, { calories: number; protein: number; carbs: number; fat: number }>();
+    for (const log of rows) {
+      const key = (log.date instanceof Date ? log.date : new Date(log.date)).toISOString().split("T")[0];
+      const acc = byDate.get(key) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      acc.calories += log.calories;
+      acc.protein += log.protein;
+      acc.carbs += log.carbs;
+      acc.fat += log.fat;
+      byDate.set(key, acc);
+    }
+
+    const result: Array<{ date: string; calories: number; protein: number; carbs: number; fat: number }> = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      const acc = byDate.get(key) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      result.push({ date: key, ...acc });
+    }
+    return result;
   }
 
   // ─── Refresh Token Methods ────────────────────────────────────────────────────

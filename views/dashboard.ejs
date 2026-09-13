@@ -31,6 +31,17 @@
     </div>
   </div>
 
+  <!-- Workout Consistency Heatmap -->
+  <div class="bg-white rounded-lg border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-brand-900">Consistency</h2>
+      <a href="/progress" class="text-sm font-medium text-brand-700 hover:text-brand-900 transition">
+        View Progress →
+      </a>
+    </div>
+    <div id="heatmap" class="overflow-x-auto pb-1"></div>
+  </div>
+
   <!-- Quick Actions - Simple Cards -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <!-- Log Workout -->
@@ -282,6 +293,49 @@
 </div>
 
 <script>
+// ── Consistency heatmap ──────────────────────────────────────────────────────
+(function renderHeatmap() {
+  const workoutDates = new Set(<%- JSON.stringify(workoutDates) %>);
+  const heatmapDays = <%= heatmapDays %>;
+  const container = document.getElementById('heatmap');
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(start.getDate() - (heatmapDays - 1));
+  start.setDate(start.getDate() - start.getDay()); // align to Sunday
+
+  const weeks = [];
+  const cursor = new Date(start);
+  while (cursor <= today) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      week.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(week);
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'flex gap-1 w-max';
+  weeks.forEach(week => {
+    const col = document.createElement('div');
+    col.className = 'flex flex-col gap-1';
+    week.forEach(day => {
+      const key = day.toISOString().split('T')[0];
+      const isFuture = day > today;
+      const hasWorkout = workoutDates.has(key);
+      const cell = document.createElement('div');
+      cell.className = 'w-3 h-3 rounded-sm ' +
+        (isFuture ? 'bg-transparent' : hasWorkout ? 'bg-brand-900' : 'bg-gray-100');
+      cell.title = key + (hasWorkout ? ' — workout logged' : '');
+      col.appendChild(cell);
+    });
+    grid.appendChild(col);
+  });
+  container.appendChild(grid);
+})();
+
 // Edit Workout Functions
 function editWorkout(id, exercise, sets, weight, reps, rpe) {
   document.getElementById('edit-workout-id').value = id;

@@ -1,5 +1,7 @@
 <%- include('partials/header') %>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
 <div class="space-y-4">
 
   <!-- Header + Date Nav -->
@@ -31,30 +33,63 @@
       <button onclick="document.getElementById('goals-modal').classList.remove('hidden')"
         class="text-sm text-brand-600 hover:text-brand-900 transition">Edit Goals</button>
     </div>
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <% const macros = [
-        { label: 'Calories', value: totals.calories, goal: goal.calories, unit: 'kcal', color: 'brand' },
-        { label: 'Protein', value: totals.protein, goal: goal.protein, unit: 'g', color: 'blue' },
-        { label: 'Carbs', value: totals.carbs, goal: goal.carbs, unit: 'g', color: 'yellow' },
-        { label: 'Fat', value: totals.fat, goal: goal.fat, unit: 'g', color: 'red' },
-      ]; %>
-      <% macros.forEach(function(m) {
-        const pct = Math.min(Math.round((m.value / m.goal) * 100), 100);
-        const over = m.value > m.goal;
-      %>
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span class="font-medium text-brand-700"><%= m.label %></span>
-          <span class="<%= over ? 'text-red-600 font-semibold' : 'text-brand-500' %>">
-            <%= Math.round(m.value) %><span class="text-xs">/<%= Math.round(m.goal) %><%= m.unit %></span>
-          </span>
-        </div>
-        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div class="h-full rounded-full transition-all <%= over ? 'bg-red-500' : 'bg-brand-600' %>"
-            style="width: <%= pct %>%"></div>
+
+    <div class="flex flex-col sm:flex-row items-center gap-6">
+      <!-- Calories ring -->
+      <div class="relative flex-shrink-0" style="width: 160px; height: 160px;">
+        <canvas id="calorie-ring"></canvas>
+        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <p class="text-2xl font-bold text-brand-900" id="calorie-ring-value"><%= Math.round(totals.calories) %></p>
+          <p class="text-xs text-brand-500" id="calorie-ring-label">
+            of <%= Math.round(goal.calories) %> kcal
+          </p>
         </div>
       </div>
-      <% }); %>
+
+      <!-- Macro bars -->
+      <div class="flex-1 w-full space-y-3">
+        <% const macros = [
+          { label: 'Protein', value: totals.protein, goal: goal.protein, unit: 'g', color: '#7c3aed' },
+          { label: 'Carbs', value: totals.carbs, goal: goal.carbs, unit: 'g', color: '#d97706' },
+          { label: 'Fat', value: totals.fat, goal: goal.fat, unit: 'g', color: '#16a34a' },
+        ]; %>
+        <% macros.forEach(function(m) {
+          const pct = Math.min(Math.round((m.value / m.goal) * 100), 100);
+          const over = m.value > m.goal;
+        %>
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="font-medium text-brand-700 flex items-center gap-1.5">
+              <span class="inline-block w-2 h-2 rounded-full" style="background-color: <%= m.color %>"></span>
+              <%= m.label %>
+            </span>
+            <span class="<%= over ? 'text-red-600 font-semibold' : 'text-brand-500' %>">
+              <%= Math.round(m.value) %><span class="text-xs">/<%= Math.round(m.goal) %><%= m.unit %></span>
+            </span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all"
+              style="width: <%= pct %>%; background-color: <%= over ? '#dc2626' : m.color %>"></div>
+          </div>
+        </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 30-Day Trends -->
+  <div class="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+    <h2 class="text-lg font-bold text-brand-900 mb-4">Last 30 Days</h2>
+    <div id="trend-empty" class="hidden py-8 text-center text-brand-500 text-sm">
+      Log food for a few days to see your trends here.
+    </div>
+    <div id="trend-charts" class="space-y-6">
+      <div style="position: relative; height: 220px;">
+        <canvas id="calorie-trend-chart"></canvas>
+      </div>
+      <div style="position: relative; height: 220px;">
+        <canvas id="macro-trend-chart"></canvas>
+      </div>
     </div>
   </div>
 
@@ -323,6 +358,105 @@
     });
     if (res.ok) window.location.reload();
   }
+
+  // ── Calorie ring ──────────────────────────────────────────────────────────
+  (function renderCalorieRing() {
+    const consumed = <%= totals.calories %>;
+    const goalCalories = <%= goal.calories %>;
+    const over = consumed > goalCalories;
+    const consumedClamped = Math.min(consumed, goalCalories);
+    const remaining = Math.max(goalCalories - consumed, 0);
+
+    document.getElementById('calorie-ring-label').textContent = over
+      ? `${Math.round(consumed - goalCalories)} kcal over ${Math.round(goalCalories)}`
+      : `of ${Math.round(goalCalories)} kcal`;
+
+    new Chart(document.getElementById('calorie-ring'), {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: over ? [goalCalories, 0] : [consumedClamped, remaining],
+          backgroundColor: over ? ['#dc2626'] : ['#212529', '#f1f3f5'],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        cutout: '75%',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      },
+    });
+  })();
+
+  // ── 30-day trends ────────────────────────────────────────────────────────
+  (async function renderTrends() {
+    const res = await fetch('/api/nutrition/history?days=30');
+    const history = await res.json();
+    const hasData = history.some(d => d.calories > 0);
+
+    if (!hasData) {
+      document.getElementById('trend-empty').classList.remove('hidden');
+      document.getElementById('trend-charts').classList.add('hidden');
+      return;
+    }
+
+    const labels = history.map(d => {
+      const parts = d.date.split('-');
+      return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+    });
+    const goalCalories = <%= goal.calories %>;
+
+    new Chart(document.getElementById('calorie-trend-chart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Calories',
+            data: history.map(d => Math.round(d.calories)),
+            borderColor: '#212529',
+            backgroundColor: 'rgba(33, 37, 41, 0.08)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 2,
+          },
+          {
+            label: 'Goal',
+            data: history.map(() => goalCalories),
+            borderColor: '#adb5bd',
+            borderDash: [4, 4],
+            pointRadius: 0,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }, title: { display: true, text: 'Calories', align: 'start', font: { size: 13 } } },
+        scales: { x: { ticks: { maxTicksLimit: 8 } } },
+      },
+    });
+
+    new Chart(document.getElementById('macro-trend-chart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Protein (g)', data: history.map(d => Math.round(d.protein)), borderColor: '#7c3aed', backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
+          { label: 'Carbs (g)', data: history.map(d => Math.round(d.carbs)), borderColor: '#d97706', backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
+          { label: 'Fat (g)', data: history.map(d => Math.round(d.fat)), borderColor: '#16a34a', backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }, title: { display: true, text: 'Macros', align: 'start', font: { size: 13 } } },
+        scales: { x: { ticks: { maxTicksLimit: 8 } } },
+      },
+    });
+  })();
 </script>
 
 <%- include('partials/footer') %>
