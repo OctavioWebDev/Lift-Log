@@ -234,3 +234,35 @@ export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals, {
 
 export type InsertNutritionGoal = z.infer<typeof insertNutritionGoalSchema>;
 export type NutritionGoal = typeof nutritionGoals.$inferSelect;
+
+// ============================================================================
+// FOOD CACHE TABLE
+// ============================================================================
+// Sanitized results from external food data sources (currently USDA
+// FoodData Central), built up incrementally as users search so repeat
+// searches are fast, work even if the USDA API is down/rate-limited, and
+// only ever hold entries that passed our own sanity checks (see
+// server/food.ts) instead of raw USDA data verbatim.
+export const foodCache = sqliteTable("food_cache", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  fdcId: integer("fdc_id").notNull().unique(),
+  name: text("name").notNull(),
+  brand: text("brand"),
+  servingSize: real("serving_size").notNull(),
+  servingUnit: text("serving_unit").notNull().default("g"),
+  calories: real("calories").notNull(),
+  protein: real("protein").notNull(),
+  carbs: real("carbs").notNull(),
+  fat: real("fat").notNull(),
+  searchHits: integer("search_hits").notNull().default(1),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+});
+
+export type FoodCacheEntry = typeof foodCache.$inferSelect;
+export type InsertFoodCacheEntry = typeof foodCache.$inferInsert;
