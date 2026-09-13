@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign Up - Chi-Rho Lifts</title>
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <meta name="theme-color" content="#000000">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -11,16 +13,16 @@
         extend: {
           colors: {
             'brand': {
-              50: '#f8f9fa',
-              100: '#f1f3f5',
-              200: '#e9ecef',
-              300: '#dee2e6',
-              400: '#ced4da',
-              500: '#adb5bd',
-              600: '#868e96',
-              700: '#495057',
-              800: '#343a40',
-              900: '#212529',
+              50: '#030712',
+              100: '#111827',
+              200: '#1f2937',
+              300: '#374151',
+              400: '#4b5563',
+              500: '#6b7280',
+              600: '#9ca3af',
+              700: '#d1d5db',
+              800: '#e5e7eb',
+              900: '#ffffff',
             }
           }
         }
@@ -28,21 +30,22 @@
     }
   </script>
 </head>
-<body class="bg-gray-50">
+<body class="bg-black">
   <div class="min-h-screen flex items-center justify-center px-4 py-12">
     <div class="max-w-md w-full space-y-8">
       <!-- Logo/Header -->
       <div class="text-center">
+        <img src="/logo/logo-mark.svg" alt="" class="w-16 h-16 mx-auto mb-3">
         <h1 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-2">Chi-Rho Lifts</h1>
         <p class="text-brand-600">Start tracking your strength journey</p>
       </div>
 
       <!-- Signup Form -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 sm:p-8">
+      <div class="bg-gray-900 rounded-lg border border-gray-800 p-6 sm:p-8">
         <h2 class="text-2xl font-bold text-brand-900 mb-6">Create Account</h2>
         
         <% if (typeof error !== 'undefined' && error) { %>
-          <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div class="mb-4 p-3 bg-red-950 border border-red-900 rounded-lg text-red-400 text-sm">
             <%= error %>
           </div>
         <% } %>
@@ -61,7 +64,7 @@
               minlength="3"
               maxlength="30"
               pattern="[a-zA-Z0-9_-]+"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
               placeholder="Choose a username"
             >
             <p class="mt-1 text-xs text-brand-500">3-30 characters, letters, numbers, hyphens, underscores</p>
@@ -75,7 +78,7 @@
               type="email"
               id="email"
               name="email"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
               placeholder="your@email.com"
             >
             <p class="mt-1 text-xs text-brand-500">For account recovery (optional)</p>
@@ -91,7 +94,7 @@
               name="password"
               required
               minlength="8"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
               placeholder="Create a password"
             >
             <p class="mt-1 text-xs text-brand-500">Minimum 8 characters</p>
@@ -107,14 +110,14 @@
               name="confirmPassword"
               required
               minlength="8"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
               placeholder="Confirm your password"
             >
           </div>
 
           <button
             type="submit"
-            class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-3 rounded-lg transition"
+            class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-lg transition"
           >
             Create Account
           </button>
@@ -123,7 +126,7 @@
         <div class="mt-6 text-center">
           <p class="text-sm text-brand-600">
             Already have an account?
-            <a href="/login" class="text-brand-900 font-medium hover:underline">Sign in</a>
+            <a href="/login" class="text-yellow-500 font-medium hover:underline">Sign in</a>
           </p>
         </div>
       </div>

@@ -4,23 +4,23 @@
 
   <% if (status === 'active') { %>
   <!-- Active — lifetime access -->
-  <div class="bg-white rounded-lg border border-gray-200 p-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-6">
     <h1 class="text-2xl font-bold text-brand-900 mb-1">Your Access</h1>
-    <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
-      <p class="text-green-700 font-medium">✓ You have lifetime access to Chi-Rho Lifts.</p>
+    <div class="mt-4 bg-green-950 border border-green-900 rounded-lg p-4">
+      <p class="text-green-400 font-medium">✓ You have lifetime access to Chi-Rho Lifts.</p>
     </div>
     <p class="text-sm text-brand-500 mt-4">Thank you for your support. Your one-time purchase gives you permanent access to all current features and future updates.</p>
   </div>
 
   <% } else { %>
   <!-- Paywall -->
-  <div class="bg-white rounded-lg border-2 border-brand-900 p-8 text-center">
+  <div class="bg-gray-900 rounded-lg border-2 border-yellow-500 p-8 text-center">
     <h1 class="text-3xl font-bold text-brand-900 mb-2">Get Lifetime Access</h1>
     <p class="text-brand-600 mb-6">One payment. Yours forever. Start tracking your strength journey today.</p>
 
     <% if (error) { %>
-    <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
-      <p class="text-red-700 text-sm">Something went wrong. Please try again.</p>
+    <div class="bg-red-950 border border-red-900 rounded-lg p-3 mb-6">
+      <p class="text-red-400 text-sm">Something went wrong. Please try again.</p>
     </div>
     <% } %>
 
@@ -52,7 +52,7 @@
 
     <form action="/billing/checkout" method="POST">
       <button type="submit"
-        class="w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-4 rounded-lg transition text-lg">
+        class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-4 rounded-lg transition text-lg">
         Get Lifetime Access — $120
       </button>
     </form>
