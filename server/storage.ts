@@ -13,6 +13,7 @@ import {
   type InsertNutritionGoal,
   type RefreshToken,
   type PushToken,
+  type FoodCacheEntry,
   users,
   workoutSets,
   goals,
@@ -20,9 +21,10 @@ import {
   nutritionGoals,
   refreshTokens,
   pushTokens,
+  foodCache,
 } from "../shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lt } from "drizzle-orm";
+import { eq, desc, and, or, like, gte, lt } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -66,6 +68,20 @@ export interface IStorage {
   // Nutrition goal methods
   getNutritionGoal(userId: string): Promise<NutritionGoal | undefined>;
   upsertNutritionGoal(goal: InsertNutritionGoal): Promise<NutritionGoal>;
+
+  // Food cache methods (sanitized, locally-cached food search results)
+  searchCachedFoods(query: string, limit?: number): Promise<FoodCacheEntry[]>;
+  upsertCachedFood(entry: {
+    fdcId: number;
+    name: string;
+    brand: string | null;
+    servingSize: number;
+    servingUnit: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }): Promise<FoodCacheEntry>;
 
   // Progress / chart methods
   getExerciseNames(userId: string): Promise<string[]>;
@@ -300,6 +316,42 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
     const [created] = await db.insert(nutritionGoals).values(goal).returning();
+    return created;
+  }
+
+  // ─── Food Cache Methods ───────────────────────────────────────────────────────
+
+  async searchCachedFoods(query: string, limit = 20): Promise<FoodCacheEntry[]> {
+    const pattern = `%${query}%`;
+    return db
+      .select()
+      .from(foodCache)
+      .where(or(like(foodCache.name, pattern), like(foodCache.brand, pattern)))
+      .orderBy(desc(foodCache.searchHits))
+      .limit(limit);
+  }
+
+  async upsertCachedFood(entry: {
+    fdcId: number;
+    name: string;
+    brand: string | null;
+    servingSize: number;
+    servingUnit: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }): Promise<FoodCacheEntry> {
+    const [existing] = await db.select().from(foodCache).where(eq(foodCache.fdcId, entry.fdcId));
+    if (existing) {
+      const [updated] = await db
+        .update(foodCache)
+        .set({ ...entry, searchHits: existing.searchHits + 1 })
+        .where(eq(foodCache.fdcId, entry.fdcId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(foodCache).values(entry).returning();
     return created;
   }
 

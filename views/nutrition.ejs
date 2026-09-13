@@ -132,7 +132,7 @@
             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
         <div class="flex flex-col justify-end">
-          <p class="text-sm text-brand-500 pb-2">1 serving = <span id="grams-per-serving">—</span>g</p>
+          <p class="text-sm text-brand-500 pb-2">1 serving = <span id="grams-per-serving">—</span></p>
         </div>
       </div>
 
@@ -271,7 +271,7 @@
         <div class="food-result px-4 py-3 cursor-pointer hover:bg-brand-50 border-b border-gray-50 last:border-0"
           onclick="selectFood(${i})">
           <p class="text-sm font-medium text-brand-900">${f.name}</p>
-          <p class="text-xs text-brand-500">${f.brand ? f.brand + ' · ' : ''}per serving (${f.gramsPerServing}g) · ${f.calories}kcal · P:${f.protein}g C:${f.carbs}g F:${f.fat}g</p>
+          <p class="text-xs text-brand-500">${f.brand ? f.brand + ' · ' : ''}per serving (${f.gramsPerServing}${f.servingUnit || 'g'}) · ${f.calories}kcal · P:${f.protein}g C:${f.carbs}g F:${f.fat}g</p>
         </div>
       `).join('');
       // Store foods on window for selectFood
@@ -295,7 +295,7 @@
     document.getElementById('selected-food-name').textContent = selectedFood.name;
     document.getElementById('selected-food-brand').textContent = selectedFood.brand || '';
     document.getElementById('serving-size').value = 1;
-    document.getElementById('grams-per-serving').textContent = selectedFood.gramsPerServing;
+    document.getElementById('grams-per-serving').textContent = selectedFood.gramsPerServing + (selectedFood.servingUnit || 'g');
     document.getElementById('food-form').classList.remove('hidden');
     updateMacroPreview();
   }

@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx seed.ts",
     "db:migrate:nutrition": "tsx scripts/migrate-nutrition-tables.ts",
-    "db:migrate:client-id-updated-at": "tsx scripts/migrate-add-client-id-updated-at.ts"
+    "db:migrate:client-id-updated-at": "tsx scripts/migrate-add-client-id-updated-at.ts",
+    "db:migrate:food-cache": "tsx scripts/migrate-add-food-cache.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
