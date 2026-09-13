@@ -1,31 +1,19 @@
 import { useState } from "react";
 import { FlatList, Pressable, TextInput } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { api } from "@/lib/api";
+import { SyncStatusBanner } from "@/components/sync-status-banner";
+import { useSession } from "@/lib/auth-context";
+import { useOfflineResource } from "@/lib/offline/use-offline-resource";
 import { formatDisplayDate, shiftISODate, todayISODate } from "@/lib/date";
 import type { WorkoutSet } from "@/lib/types";
 import { screenStyles as styles } from "@/styles/screen";
 
 export default function WorkoutLog() {
+  const { user } = useSession();
   const [date, setDate] = useState(todayISODate());
-  const queryClient = useQueryClient();
-
-  const { data: workouts, isLoading } = useQuery({
-    queryKey: ["workout-sets", date],
-    queryFn: () => api.workoutSets.forDate(date),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: api.workoutSets.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workout-sets", date] }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: api.workoutSets.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workout-sets", date] }),
-  });
+  const { data: allWorkouts, isLoading, create, remove } = useOfflineResource<WorkoutSet>("workoutSets", user?.id);
+  const workouts = allWorkouts.filter((w) => w.date.startsWith(date));
 
   const [exercise, setExercise] = useState("");
   const [sets, setSets] = useState("3");
@@ -33,30 +21,25 @@ export default function WorkoutLog() {
   const [reps, setReps] = useState("");
   const [rpe, setRpe] = useState("");
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!exercise.trim() || !weight || !reps) return;
-    createMutation.mutate(
-      {
-        exercise: exercise.trim(),
-        sets: Number(sets) || 1,
-        weight: Number(weight),
-        reps: Number(reps),
-        rpe: rpe ? Number(rpe) : undefined,
-        date: `${date}T12:00:00.000Z`,
-      },
-      {
-        onSuccess: () => {
-          setExercise("");
-          setWeight("");
-          setReps("");
-          setRpe("");
-        },
-      }
-    );
+    await create({
+      exercise: exercise.trim(),
+      sets: Number(sets) || 1,
+      weight: Number(weight),
+      reps: Number(reps),
+      rpe: rpe ? Number(rpe) : undefined,
+      date: `${date}T12:00:00.000Z`,
+    });
+    setExercise("");
+    setWeight("");
+    setReps("");
+    setRpe("");
   }
 
   return (
     <ThemedView style={styles.container}>
+      <SyncStatusBanner />
       <ThemedView style={styles.dateNav}>
         <Pressable style={styles.navButton} onPress={() => setDate((d) => shiftISODate(d, -1))}>
           <ThemedText>{"< Prev"}</ThemedText>
@@ -67,9 +50,9 @@ export default function WorkoutLog() {
         </Pressable>
       </ThemedView>
 
-      <FlatList<WorkoutSet>
-        data={workouts ?? []}
-        keyExtractor={(item) => String(item.id)}
+      <FlatList<WorkoutSet & { clientId: string }>
+        data={workouts}
+        keyExtractor={(item) => item.clientId}
         contentContainerStyle={{ gap: 8 }}
         ListEmptyComponent={
           !isLoading ? <ThemedText style={styles.empty}>No sets logged for this day yet.</ThemedText> : null
@@ -82,7 +65,7 @@ export default function WorkoutLog() {
                 {item.sets} × {item.reps} @ {item.weight} lbs{item.rpe ? ` · RPE ${item.rpe}` : ""}
               </ThemedText>
             </ThemedView>
-            <Pressable onPress={() => deleteMutation.mutate(item.id)}>
+            <Pressable onPress={() => remove(item.clientId)}>
               <ThemedText style={styles.deleteText}>Delete</ThemedText>
             </Pressable>
           </ThemedView>
@@ -121,10 +104,7 @@ export default function WorkoutLog() {
             onChangeText={setRpe}
           />
         </ThemedView>
-        <Pressable
-          style={[styles.button, createMutation.isPending && styles.buttonDisabled]}
-          disabled={createMutation.isPending}
-          onPress={handleAdd}>
+        <Pressable style={styles.button} onPress={handleAdd}>
           <ThemedText style={styles.buttonText}>Add Set</ThemedText>
         </Pressable>
       </ThemedView>

@@ -25,6 +25,7 @@ export interface TokenPair {
 export interface WorkoutSet {
   id: number;
   userId: string;
+  clientId?: string | null;
   exercise: string;
   sets: number;
   weight: number;
@@ -37,6 +38,7 @@ export interface WorkoutSet {
 export interface Goal {
   id: number;
   userId: string;
+  clientId?: string | null;
   exercise: string;
   current: number;
   target: number;
@@ -47,6 +49,7 @@ export interface Goal {
 export interface NutritionLog {
   id: number;
   userId: string;
+  clientId?: string | null;
   date: string;
   foodName: string;
   brandName: string | null;

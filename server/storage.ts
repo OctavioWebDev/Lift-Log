@@ -146,6 +146,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkoutSet(insertWorkoutSet: InsertWorkoutSet): Promise<WorkoutSet> {
+    if (insertWorkoutSet.clientId) {
+      const [existing] = await db
+        .select()
+        .from(workoutSets)
+        .where(eq(workoutSets.clientId, insertWorkoutSet.clientId));
+      if (existing) return existing;
+    }
     const [workoutSet] = await db
       .insert(workoutSets)
       .values(insertWorkoutSet)
@@ -186,6 +193,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGoal(insertGoal: InsertGoal): Promise<Goal> {
+    if (insertGoal.clientId) {
+      const [existing] = await db.select().from(goals).where(eq(goals.clientId, insertGoal.clientId));
+      if (existing) return existing;
+    }
     const [goal] = await db
       .insert(goals)
       .values(insertGoal)
@@ -235,6 +246,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createNutritionLog(log: InsertNutritionLog): Promise<NutritionLog> {
+    if (log.clientId) {
+      const [existing] = await db
+        .select()
+        .from(nutritionLogs)
+        .where(eq(nutritionLogs.clientId, log.clientId));
+      if (existing) return existing;
+    }
     const [entry] = await db.insert(nutritionLogs).values(log).returning();
     return entry;
   }
