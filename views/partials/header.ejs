@@ -3,10 +3,19 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>
     <%= typeof title !=='undefined' ? title : 'Chi-Rho Lifts' %>
   </title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#212529">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chi-Rho Lifts">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -38,11 +47,25 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
+
+    #bottom-tab-bar {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    #bottom-tab-bar .tab-link.active {
+      color: #212529;
+    }
+
+    @media (max-width: 639px) {
+      body.has-bottom-tabs main {
+        padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+      }
+    }
   </style>
 </head>
 
-<body class="bg-gray-50">
-  <nav class="bg-white border-b border-gray-200">
+<body class="bg-gray-50<%= (typeof user !== 'undefined' && user) ? ' has-bottom-tabs' : '' %>">
+  <nav class="bg-white border-b border-gray-200" style="padding-top: env(safe-area-inset-top);">
     <div class="px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-14 sm:h-16">
         <!-- Logo -->
@@ -125,28 +148,9 @@
         </div>
       </div>
 
-      <!-- Mobile Menu Dropdown -->
+      <!-- Mobile Menu Dropdown — primary nav lives in the bottom tab bar now;
+           this keeps only the less-frequent links. -->
       <div id="mobile-menu" class="hidden sm:hidden pb-3 space-y-1">
-        <a href="/app"
-          class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
-          Workout Log
-        </a>
-        <a href="/dashboard"
-          class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
-          Dashboard
-        </a>
-        <a href="/progress"
-          class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
-          Progress
-        </a>
-        <a href="/goals"
-          class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
-          Goals
-        </a>
-        <a href="/nutrition"
-          class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
-          Nutrition
-        </a>
         <a href="/billing"
           class="block px-3 py-2 text-brand-700 hover:bg-gray-50 hover:text-brand-900 rounded-lg font-medium">
           Billing
@@ -176,6 +180,50 @@
       </div>
     </div>
   </nav>
+
+  <!-- Bottom Tab Bar — mobile only, primary app navigation (native-app style) -->
+  <% if (typeof user !== 'undefined' && user) { %>
+  <nav id="bottom-tab-bar" class="sm:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex z-40">
+    <a href="/dashboard" data-tab="/dashboard" class="tab-link flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-brand-500">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+      <span class="text-[11px] font-medium">Home</span>
+    </a>
+    <a href="/app" data-tab="/app" class="tab-link flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-brand-500">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+      <span class="text-[11px] font-medium">Log</span>
+    </a>
+    <a href="/progress" data-tab="/progress" class="tab-link flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-brand-500">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+      <span class="text-[11px] font-medium">Progress</span>
+    </a>
+    <a href="/nutrition" data-tab="/nutrition" class="tab-link flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-brand-500">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+      </svg>
+      <span class="text-[11px] font-medium">Nutrition</span>
+    </a>
+    <a href="/goals" data-tab="/goals" class="tab-link flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-brand-500">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18M3 4a9 9 0 016 0 9 9 0 006 0v8a9 9 0 01-6 0 9 9 0 00-6 0V4z" />
+      </svg>
+      <span class="text-[11px] font-medium">Goals</span>
+    </a>
+  </nav>
+  <script>
+    (function highlightActiveTab() {
+      const path = window.location.pathname;
+      document.querySelectorAll('#bottom-tab-bar .tab-link').forEach((link) => {
+        if (link.dataset.tab === path) link.classList.add('active');
+      });
+    })();
+  </script>
+  <% } %>
 
   <main class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl mx-auto">
 

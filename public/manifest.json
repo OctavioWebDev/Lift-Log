@@ -1,0 +1,14 @@
+{
+  "name": "Chi-Rho Lifts",
+  "short_name": "Chi-Rho Lifts",
+  "description": "Track your progress. Build real strength.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#212529",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
