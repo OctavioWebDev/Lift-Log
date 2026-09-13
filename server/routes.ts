@@ -210,10 +210,12 @@ export async function registerRoutes(
   app.get("/progress", requireSubscription, async (req, res) => {
     try {
       const exercises = await storage.getExerciseNames(req.session!.userId!);
+      const defaultExercise = await storage.getStrongestExercise(req.session!.userId!);
       res.render("progress", {
         title: "Progress - Chi-Rho Lifts",
         user: req.user,
         exercises,
+        defaultExercise,
       });
     } catch (error) {
       console.error("Error rendering progress:", error);
