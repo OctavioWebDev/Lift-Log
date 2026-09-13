@@ -23,6 +23,11 @@ app.set("views", path.join(__dirname, "../views"));
 
 console.log("✓ EJS configured");
 
+// Static assets — PWA manifest, service worker, icons
+app.use(express.static(path.join(__dirname, "../public")));
+
+console.log("✓ Static assets configured");
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
