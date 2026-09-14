@@ -585,6 +585,54 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/admin/users/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.session!.userId!);
+      if (!currentUser?.isAdmin) {
+        return res.status(403).send("Access denied. Admin privileges required.");
+      }
+      const targetUser = await storage.getUser(req.params.id);
+      if (!targetUser) {
+        return res.status(404).send("User not found");
+      }
+
+      const allWorkouts = await storage.getAllWorkoutSets(targetUser.id);
+      const goals = await storage.getAllGoals(targetUser.id);
+      const bestLifts = await storage.getBestLiftsByExercise(targetUser.id);
+
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const workoutsThisWeek = allWorkouts.filter((w) => {
+        const d = new Date(w.date);
+        return d >= startOfWeek && d <= now;
+      });
+      const totalVolume = allWorkouts.reduce((sum, w) => sum + w.sets * w.weight * w.reps, 0);
+
+      const stats = {
+        totalWorkouts: allWorkouts.length,
+        workoutsThisWeek: workoutsThisWeek.length,
+        totalVolume,
+        activeGoals: goals.length,
+      };
+
+      res.render("admin-user-detail", {
+        title: `${targetUser.username} - Admin - Chi-Rho Lifts`,
+        user: req.user,
+        targetUser,
+        subscriptionStatus: getSubscriptionStatus(targetUser),
+        stats,
+        goals,
+        bestLifts,
+        recentWorkouts: allWorkouts.slice(0, 20),
+      });
+    } catch (error) {
+      console.error("Error rendering admin user detail:", error);
+      res.status(500).send("Error loading user detail");
+    }
+  });
+
   app.delete("/admin/users/:id", requireAuth, async (req, res) => {
     try {
       const currentUser = await storage.getUser(req.session!.userId!);
