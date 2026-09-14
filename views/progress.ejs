@@ -31,7 +31,15 @@
       <div class="grid grid-cols-3 gap-4 mb-4">
         <div class="bg-black rounded-lg p-3 text-center">
           <p class="text-2xl font-bold text-brand-900" id="stat-current-1rm">—</p>
-          <p class="text-xs text-brand-500 uppercase tracking-wide mt-1">Est. 1RM</p>
+          <p class="flex items-center justify-center gap-1 text-xs text-brand-500 uppercase tracking-wide mt-1">
+            Est. 1RM
+            <button type="button" onclick="showInfoTooltip(event, 'Estimated 1-Rep Max: the heaviest single lift you could likely do, calculated from the weight and reps of a set (Epley formula). It is an estimate, not a tested max.')" class="text-brand-500 hover:text-yellow-500 normal-case" aria-label="What is Est. 1RM?">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" stroke-width="2" />
+                <path stroke-linecap="round" stroke-width="2" d="M12 16v-4m0-4h.01" />
+              </svg>
+            </button>
+          </p>
         </div>
         <div class="bg-black rounded-lg p-3 text-center">
           <p class="text-2xl font-bold text-brand-900" id="stat-best-set">—</p>
