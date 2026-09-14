@@ -217,6 +217,134 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/profile", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session!.userId!);
+      if (!user) return res.redirect("/login");
+      res.render("profile", {
+        title: "Profile - Chi-Rho Lifts",
+        user: req.user,
+        profileUser: user,
+        accountError: null,
+        accountSuccess: false,
+        lifterError: null,
+        lifterSuccess: false,
+      });
+    } catch (error) {
+      console.error("Error rendering profile:", error);
+      res.status(500).send("Error loading page");
+    }
+  });
+
+  app.post("/profile/account", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.redirect("/login");
+
+      const renderError = (accountError: string) => res.render("profile", {
+        title: "Profile - Chi-Rho Lifts",
+        user: req.user,
+        profileUser: currentUser,
+        accountError,
+        accountSuccess: false,
+        lifterError: null,
+        lifterSuccess: false,
+      });
+
+      const { username, email } = req.body;
+      if (!username) return renderError("Username is required");
+      const usernameValidation = isValidUsername(username);
+      if (!usernameValidation.valid) return renderError(usernameValidation.message!);
+      if (email && !isValidEmail(email)) return renderError("Invalid email address");
+
+      if (username !== currentUser.username) {
+        const existing = await storage.getUserByUsername(username);
+        if (existing) return renderError("Username already taken");
+      }
+      if (email) {
+        const allUsers = await storage.getAllUsers();
+        if (allUsers.some((u) => u.email === email && u.id !== userId)) {
+          return renderError("Email already registered");
+        }
+      }
+
+      const updatedUser = await storage.updateUser(userId, { username, email: email || null });
+      res.render("profile", {
+        title: "Profile - Chi-Rho Lifts",
+        // Reflect the new username in the header immediately, without
+        // waiting for attachUser to re-fetch it on the next request.
+        user: { ...req.user!, username: updatedUser?.username || username },
+        profileUser: updatedUser || currentUser,
+        accountError: null,
+        accountSuccess: true,
+        lifterError: null,
+        lifterSuccess: false,
+      });
+    } catch (error) {
+      console.error("Error updating account info:", error);
+      res.status(500).send("Error updating profile");
+    }
+  });
+
+  app.post("/profile/lifter-info", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.redirect("/login");
+
+      const renderError = (lifterError: string) => res.render("profile", {
+        title: "Profile - Chi-Rho Lifts",
+        user: req.user,
+        profileUser: currentUser,
+        accountError: null,
+        accountSuccess: false,
+        lifterError,
+        lifterSuccess: false,
+      });
+
+      const { fullName, dateOfBirth, sex, bodyweight, heightInches } = req.body;
+
+      if (dateOfBirth && (isNaN(new Date(dateOfBirth).getTime()) || new Date(dateOfBirth) > new Date())) {
+        return renderError("Enter a valid date of birth");
+      }
+      if (sex && !["male", "female", "prefer_not_to_say"].includes(sex)) {
+        return renderError("Invalid selection");
+      }
+      let parsedBodyweight: number | null = null;
+      if (bodyweight) {
+        parsedBodyweight = parseFloat(bodyweight);
+        if (isNaN(parsedBodyweight) || parsedBodyweight <= 0) return renderError("Enter a valid bodyweight");
+      }
+      let parsedHeight: number | null = null;
+      if (heightInches) {
+        parsedHeight = parseFloat(heightInches);
+        if (isNaN(parsedHeight) || parsedHeight <= 0) return renderError("Enter a valid height");
+      }
+
+      const updatedUser = await storage.updateUser(userId, {
+        fullName: (typeof fullName === "string" && fullName.trim()) || null,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        sex: sex || null,
+        bodyweight: parsedBodyweight,
+        heightInches: parsedHeight,
+      });
+
+      res.render("profile", {
+        title: "Profile - Chi-Rho Lifts",
+        user: req.user,
+        profileUser: updatedUser || currentUser,
+        accountError: null,
+        accountSuccess: false,
+        lifterError: null,
+        lifterSuccess: true,
+      });
+    } catch (error) {
+      console.error("Error updating lifter info:", error);
+      res.status(500).send("Error updating profile");
+    }
+  });
+
   // ============================================================================
   // PAGE ROUTES (Protected)
   // ============================================================================

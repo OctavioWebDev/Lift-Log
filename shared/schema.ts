@@ -24,6 +24,12 @@ export const users = sqliteTable("users", {
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   currentPeriodEndsAt: integer("current_period_ends_at", { mode: "timestamp" }),
+  // Lifter profile — all optional, editable from the Profile page.
+  fullName: text("full_name"),
+  dateOfBirth: integer("date_of_birth", { mode: "timestamp" }),
+  sex: text("sex"), // 'male' | 'female' | 'prefer_not_to_say'
+  bodyweight: real("bodyweight"), // lbs
+  heightInches: real("height_inches"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
