@@ -311,4 +311,57 @@
         btn.querySelector('.eye-icon').classList.toggle('hidden', show);
         btn.querySelector('.eye-off-icon').classList.toggle('hidden', !show);
       }
+
+      // Searchable exercise dropdown, shared by the workout log and goals
+      // forms so exercise names always come from the same list (letting
+      // goals match up with logged workouts by exact name).
+      function setupExerciseSearch(searchId, valueId, dropdownId, optionClass) {
+        const search = document.getElementById(searchId);
+        const value = document.getElementById(valueId);
+        const dropdown = document.getElementById(dropdownId);
+        const options = dropdown.querySelectorAll('.' + optionClass);
+        const headers = dropdown.querySelectorAll('.exercise-group-header');
+
+        search.addEventListener('focus', () => {
+          dropdown.classList.remove('hidden');
+          options.forEach(o => o.style.display = '');
+          headers.forEach(h => h.style.display = '');
+        });
+
+        search.addEventListener('input', () => {
+          const q = search.value.toLowerCase().trim();
+          if (!q) {
+            options.forEach(o => o.style.display = '');
+            headers.forEach(h => h.style.display = '');
+            dropdown.classList.remove('hidden');
+            return;
+          }
+          options.forEach(opt => {
+            opt.style.display = opt.dataset.value.toLowerCase().includes(q) ? '' : 'none';
+          });
+          headers.forEach(header => {
+            let next = header.nextElementSibling;
+            let hasVisible = false;
+            while (next && !next.classList.contains('exercise-group-header')) {
+              if (next.style.display !== 'none') hasVisible = true;
+              next = next.nextElementSibling;
+            }
+            header.style.display = hasVisible ? '' : 'none';
+          });
+          dropdown.classList.remove('hidden');
+        });
+
+        options.forEach(opt => {
+          opt.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            search.value = opt.dataset.value;
+            value.value = opt.dataset.value;
+            dropdown.classList.add('hidden');
+          });
+        });
+
+        search.addEventListener('blur', () => {
+          setTimeout(() => dropdown.classList.add('hidden'), 200);
+        });
+      }
     </script>

@@ -322,7 +322,9 @@ export async function registerRoutes(
       res.render("goals", {
         title: "Goals - Chi-Rho Lifts",
         goals,
-        user: req.user
+        user: req.user,
+        exercises: ALL_EXERCISES,
+        exerciseGroups: EXERCISES,
       });
     } catch (error) {
       console.error("Error rendering goals page:", error);
@@ -561,6 +563,7 @@ export async function registerRoutes(
         );
       }
       const workoutSet = await storage.createWorkoutSet(result.data);
+      await storage.syncGoalCurrentFromHistory(req.session!.userId!, workoutSet.exercise);
       const html = await new Promise<string>((resolve, reject) => {
         res.app.render("partials/workout-item", { workout: workoutSet }, (err, html) => {
           if (err) reject(err);
@@ -584,9 +587,14 @@ export async function registerRoutes(
       if (!result.success) {
         return res.status(400).json({ message: fromError(result.error).toString() });
       }
+      const previous = await storage.getWorkoutSet(req.session!.userId!, id);
       const workoutSet = await storage.updateWorkoutSet(req.session!.userId!, id, result.data);
       if (!workoutSet) {
         return res.status(404).json({ message: "Workout set not found" });
+      }
+      await storage.syncGoalCurrentFromHistory(req.session!.userId!, workoutSet.exercise);
+      if (previous && previous.exercise !== workoutSet.exercise) {
+        await storage.syncGoalCurrentFromHistory(req.session!.userId!, previous.exercise);
       }
       res.json(workoutSet);
     } catch (error) {
@@ -601,7 +609,11 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid ID" });
       }
+      const existing = await storage.getWorkoutSet(req.session!.userId!, id);
       await storage.deleteWorkoutSet(req.session!.userId!, id);
+      if (existing) {
+        await storage.syncGoalCurrentFromHistory(req.session!.userId!, existing.exercise);
+      }
       res.status(200).send("");
     } catch (error) {
       console.error("Error deleting workout set:", error);
@@ -631,8 +643,10 @@ export async function registerRoutes(
         );
       }
       const goal = await storage.createGoal(result.data);
+      await storage.syncGoalCurrentFromHistory(req.session!.userId!, goal.exercise);
+      const freshGoal = await storage.getGoalByExercise(req.session!.userId!, goal.exercise);
       const html = await new Promise<string>((resolve, reject) => {
-        res.app.render("partials/goal-item", { goal }, (err, html) => {
+        res.app.render("partials/goal-item", { goal: freshGoal || goal }, (err, html) => {
           if (err) reject(err);
           else resolve(html);
         });

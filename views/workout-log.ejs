@@ -124,7 +124,7 @@
     <div class="bg-gray-900 rounded-lg border border-gray-800">
       <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg sm:text-xl font-bold text-brand-900">Today's Workouts</h2>
+          <h2 class="text-lg sm:text-xl font-bold text-brand-900" id="workout-list-heading">Today's Workouts</h2>
           <span class="text-xs sm:text-sm text-brand-600 bg-gray-800 px-2 py-1 rounded">
             <%= workouts.length %> sets
           </span>
@@ -159,7 +159,7 @@
                   <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                     <!-- Edit Button -->
                     <button
-                      onclick="editWorkout(<%= workout.id %>, <%= JSON.stringify(workout.exercise) %>, <%= workout.sets %>, <%= workout.weight %>, <%= workout.reps %>, <%= workout.rpe || 'null' %>)"
+                      onclick="editWorkout(<%= workout.id %>, <%= JSON.stringify(workout.exercise) %>, <%= JSON.stringify(new Date(workout.date).toISOString().split('T')[0]) %>, <%= workout.sets %>, <%= workout.weight %>, <%= workout.reps %>, <%= workout.rpe || 'null' %>)"
                       class="text-brand-600 hover:text-yellow-400 transition p-1.5 sm:p-2" title="Edit">
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -257,6 +257,11 @@
           </div>
         </div>
 
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-1">Date</label>
+          <input type="date" id="edit-date" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2.5" required>
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium text-brand-700 mb-1">Sets</label>
@@ -316,6 +321,11 @@
         year: 'numeric'
       });
       document.getElementById('date-display').textContent = formatted;
+
+      const isToday = currentDate === new Date().toISOString().split('T')[0];
+      document.getElementById('workout-list-heading').textContent = isToday
+        ? "Today's Workouts"
+        : date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' Workouts';
     }
 
     updateDateDisplays();
@@ -334,67 +344,14 @@
       navigateToDate(new Date().toISOString().split('T')[0]);
     }
 
-    // ── Exercise search (log form) ──────────────────────────────────────────
-    function setupExerciseSearch(searchId, valueId, dropdownId, optionClass) {
-      const search = document.getElementById(searchId);
-      const value = document.getElementById(valueId);
-      const dropdown = document.getElementById(dropdownId);
-      const options = dropdown.querySelectorAll('.' + optionClass);
-      const headers = dropdown.querySelectorAll('.exercise-group-header');
-
-      // Show full list on focus
-      search.addEventListener('focus', () => {
-        dropdown.classList.remove('hidden');
-        options.forEach(o => o.style.display = '');
-        headers.forEach(h => h.style.display = '');
-      });
-
-      search.addEventListener('input', () => {
-        const q = search.value.toLowerCase().trim();
-        if (!q) {
-          options.forEach(o => o.style.display = '');
-          headers.forEach(h => h.style.display = '');
-          dropdown.classList.remove('hidden');
-          return;
-        }
-        // Filter options
-        options.forEach(opt => {
-          opt.style.display = opt.dataset.value.toLowerCase().includes(q) ? '' : 'none';
-        });
-        // Hide headers with no visible options
-        headers.forEach(header => {
-          let next = header.nextElementSibling;
-          let hasVisible = false;
-          while (next && !next.classList.contains('exercise-group-header')) {
-            if (next.style.display !== 'none') hasVisible = true;
-            next = next.nextElementSibling;
-          }
-          header.style.display = hasVisible ? '' : 'none';
-        });
-        dropdown.classList.remove('hidden');
-      });
-
-      options.forEach(opt => {
-        opt.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          search.value = opt.dataset.value;
-          value.value = opt.dataset.value;
-          dropdown.classList.add('hidden');
-        });
-      });
-
-      search.addEventListener('blur', () => {
-        setTimeout(() => dropdown.classList.add('hidden'), 200);
-      });
-    }
-
     setupExerciseSearch('exercise-search', 'exercise-value', 'exercise-dropdown', 'exercise-option');
     setupExerciseSearch('edit-exercise-search', 'edit-exercise', 'edit-exercise-dropdown', 'edit-exercise-option');
 
-    function editWorkout(id, exercise, sets, weight, reps, rpe) {
+    function editWorkout(id, exercise, date, sets, weight, reps, rpe) {
       document.getElementById('edit-workout-id').value = id;
       document.getElementById('edit-exercise-search').value = exercise;
       document.getElementById('edit-exercise').value = exercise;
+      document.getElementById('edit-date').value = date;
       document.getElementById('edit-sets').value = sets;
       document.getElementById('edit-weight').value = weight;
       document.getElementById('edit-reps').value = reps;
@@ -411,6 +368,7 @@
       const id = document.getElementById('edit-workout-id').value;
       const data = {
         exercise: document.getElementById('edit-exercise').value,
+        date: document.getElementById('edit-date').value,
         sets: parseInt(document.getElementById('edit-sets').value),
         weight: parseFloat(document.getElementById('edit-weight').value),
         reps: parseInt(document.getElementById('edit-reps').value),
