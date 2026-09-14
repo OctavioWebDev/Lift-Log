@@ -11,6 +11,7 @@ import { requireSubscription } from "./middleware/subscription";
 import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
 import { searchFoods } from "./food";
 import { registerApiV1Routes } from "./routes/api-v1";
+import { MEET_LIFTS, PREMADE_DURATIONS, generatePremadePlan, generateCustomPlan, groupEntriesByWeek } from "./meet-prep";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -242,10 +243,15 @@ export async function registerRoutes(
 
   app.get("/dashboard", requireSubscription, async (req, res) => {
     try {
-      const allWorkouts = await storage.getAllWorkoutSets(req.session!.userId!);
+      const now = new Date();
+      const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      // Excludes not-yet-due meet-prep plan prescriptions — "recent" and
+      // weekly stats should only reflect work actually done. Sets logged
+      // directly (no meetPrepId) always count immediately as normal.
+      const allWorkouts = (await storage.getAllWorkoutSets(req.session!.userId!))
+        .filter(w => !w.meetPrepId || new Date(w.date) < startOfToday);
       const goals = await storage.getAllGoals(req.session!.userId!);
 
-      const now = new Date();
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
       startOfWeek.setHours(0, 0, 0, 0);
@@ -686,6 +692,173 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting goal:", error);
       res.status(500).send(`<div class="text-red-600 p-4">Failed to delete goal</div>`);
+    }
+  });
+
+  // ============================================================================
+  // MEET PREP ROUTES
+  // ============================================================================
+
+  app.get("/meet-prep", requireSubscription, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const allPlans = await storage.getMeetPreps(userId);
+      const now = new Date();
+      const activePlans = allPlans.filter((p) => new Date(p.endDate) >= now);
+      const pastPlans = allPlans.filter((p) => new Date(p.endDate) < now);
+      const activePlansWithEntries = await Promise.all(
+        activePlans.map(async (plan) => {
+          const entries = await storage.getWorkoutSetsForMeetPrep(userId, plan.id);
+          const start = new Date(plan.startDate);
+          const daysSinceStart = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+          const currentWeek = now < start ? 0 : Math.min(plan.weeks, Math.floor(daysSinceStart / 7) + 1);
+          const weeksList = groupEntriesByWeek(entries, start, plan.weeks);
+          return { plan, currentWeek, weeksList };
+        })
+      );
+      res.render("meet-prep", {
+        title: "Meet Prep - Chi-Rho Lifts",
+        user: req.user,
+        activePlansWithEntries,
+        pastPlans,
+        meetLifts: MEET_LIFTS,
+        premadeDurations: PREMADE_DURATIONS,
+      });
+    } catch (error) {
+      console.error("Error rendering meet prep page:", error);
+      res.status(500).send("Error loading page");
+    }
+  });
+
+  app.post("/api/meet-prep", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { planType, name, startDate, trainingDays } = req.body;
+
+      if (planType !== "custom" && planType !== "premade") {
+        return res.status(400).json({ message: "Invalid plan type" });
+      }
+      if (!startDate || isNaN(new Date(startDate).getTime())) {
+        return res.status(400).json({ message: "A valid start date is required" });
+      }
+      const days: number[] = Array.isArray(trainingDays)
+        ? Array.from(new Set(trainingDays.map((d: any) => parseInt(d)).filter((d: number) => !isNaN(d) && d >= 0 && d <= 6)))
+        : [];
+      if (days.length === 0) {
+        return res.status(400).json({ message: "Select at least one training day" });
+      }
+      const parsedStartDate = new Date(startDate);
+
+      let entries;
+      let endDate: Date;
+      let weeks: number;
+      let squatMax: number | null = null;
+      let benchMax: number | null = null;
+      let deadliftMax: number | null = null;
+      let repScheme: string | null = null;
+
+      if (planType === "premade") {
+        weeks = parseInt(req.body.weeks);
+        if (!(PREMADE_DURATIONS as readonly number[]).includes(weeks)) {
+          return res.status(400).json({ message: "Duration must be 4, 8, 12, or 16 weeks" });
+        }
+        squatMax = parseFloat(req.body.squatMax);
+        benchMax = parseFloat(req.body.benchMax);
+        deadliftMax = parseFloat(req.body.deadliftMax);
+        if ([squatMax, benchMax, deadliftMax].some((m) => isNaN(m) || m <= 0)) {
+          return res.status(400).json({ message: "Enter your current Squat, Bench, and Deadlift 1RMs" });
+        }
+        entries = generatePremadePlan({
+          startDate: parsedStartDate,
+          weeks,
+          trainingDays: days,
+          squatMax,
+          benchMax,
+          deadliftMax,
+        });
+        endDate = entries.length ? entries[entries.length - 1].date : parsedStartDate;
+      } else {
+        if (!req.body.endDate || isNaN(new Date(req.body.endDate).getTime())) {
+          return res.status(400).json({ message: "A valid finish date is required" });
+        }
+        endDate = new Date(req.body.endDate);
+        if (endDate < parsedStartDate) {
+          return res.status(400).json({ message: "Finish date must be after the start date" });
+        }
+        const sets = parseInt(req.body.sets);
+        const reps = parseInt(req.body.reps);
+        const squatWeight = parseFloat(req.body.squatWeight);
+        const benchWeight = parseFloat(req.body.benchWeight);
+        const deadliftWeight = parseFloat(req.body.deadliftWeight);
+        if (
+          [sets, reps].some((n) => isNaN(n) || n <= 0) ||
+          [squatWeight, benchWeight, deadliftWeight].some((n) => isNaN(n) || n < 0)
+        ) {
+          return res.status(400).json({ message: "Enter a valid rep scheme and starting weights for each lift" });
+        }
+        repScheme = `${sets}x${reps}`;
+        entries = generateCustomPlan({
+          startDate: parsedStartDate,
+          endDate,
+          trainingDays: days,
+          sets,
+          reps,
+          squatWeight,
+          benchWeight,
+          deadliftWeight,
+        });
+        weeks = Math.max(1, Math.ceil((endDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24 * 7)));
+      }
+
+      if (entries.length === 0) {
+        return res.status(400).json({ message: "No training days fall within that date range" });
+      }
+
+      const meetPrep = await storage.createMeetPrep({
+        userId,
+        name: (typeof name === "string" && name.trim()) || (planType === "premade" ? `${weeks}-Week Meet Prep` : "Custom Meet Prep"),
+        planType,
+        startDate: parsedStartDate,
+        endDate,
+        weeks,
+        trainingDays: JSON.stringify(days),
+        squatMax,
+        benchMax,
+        deadliftMax,
+        repScheme,
+      });
+
+      await storage.createWorkoutSetsBulk(
+        entries.map((e) => ({
+          userId,
+          meetPrepId: meetPrep.id,
+          exercise: e.exercise,
+          sets: e.sets,
+          reps: e.reps,
+          weight: e.weight,
+          rpe: e.rpe,
+          date: e.date,
+        }))
+      );
+
+      res.status(201).json({ meetPrep });
+    } catch (error) {
+      console.error("Error creating meet prep plan:", error);
+      res.status(500).json({ message: "Failed to create meet prep plan" });
+    }
+  });
+
+  app.delete("/api/meet-prep/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      await storage.deleteMeetPrep(req.session!.userId!, id);
+      res.status(200).send("");
+    } catch (error) {
+      console.error("Error deleting meet prep plan:", error);
+      res.status(500).json({ message: "Failed to delete meet prep plan" });
     }
   });
 

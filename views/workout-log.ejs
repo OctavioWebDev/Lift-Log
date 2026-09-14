@@ -144,6 +144,9 @@
                   <div class="flex-1 min-w-0">
                     <h3 class="text-base sm:text-lg font-bold text-brand-900 mb-0.5 truncate">
                       <%= workout.exercise %>
+                      <% if (workout.meetPrepId) { %>
+                        <span class="text-xs font-normal bg-gray-800 text-brand-500 px-1.5 py-0.5 rounded align-middle">Plan</span>
+                      <% } %>
                     </h3>
                     <p class="text-sm text-brand-600">
                       <%= workout.sets %> × <%= workout.weight %> lbs × <%= workout.reps %> reps

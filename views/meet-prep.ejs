@@ -1,0 +1,335 @@
+<%- include('partials/header') %>
+
+<% function fmtDate(d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } %>
+<% function fmtDateInput(d) { return new Date(d).toISOString().split('T')[0]; } %>
+<% const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; %>
+
+<div class="space-y-6">
+  <!-- Page Header -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-6">
+    <h1 class="text-3xl font-bold text-brand-900 mb-1">Meet Prep</h1>
+    <p class="text-brand-600">Plan your Squat, Bench, and Deadlift training toward a meet date.</p>
+  </div>
+
+  <!-- Active / Upcoming Plans -->
+  <% if (activePlansWithEntries.length > 0) { %>
+    <% activePlansWithEntries.forEach(function(item) { %>
+      <% const plan = item.plan; %>
+      <div class="bg-gray-900 rounded-lg border border-gray-800" id="meet-prep-<%= plan.id %>">
+        <div class="p-4 sm:p-6 border-b border-gray-800">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <h2 class="text-xl font-bold text-brand-900"><%= plan.name %></h2>
+                <span class="text-xs bg-gray-800 text-brand-600 px-2 py-0.5 rounded uppercase tracking-wide">
+                  <%= plan.planType %>
+                </span>
+              </div>
+              <p class="text-sm text-brand-600">
+                <%= fmtDate(plan.startDate) %> &rarr; <%= fmtDate(plan.endDate) %>
+                &middot;
+                <%= item.currentWeek === 0 ? 'Starts ' + fmtDate(plan.startDate) : `Week ${item.currentWeek} of ${plan.weeks}` %>
+              </p>
+              <% if (plan.planType === 'premade') { %>
+                <p class="text-xs text-brand-500 mt-1">
+                  Starting maxes &mdash; Squat: <%= plan.squatMax %> lbs &middot; Bench: <%= plan.benchMax %> lbs &middot; Deadlift: <%= plan.deadliftMax %> lbs
+                </p>
+              <% } else if (plan.repScheme) { %>
+                <p class="text-xs text-brand-500 mt-1">Rep scheme: <%= plan.repScheme %></p>
+              <% } %>
+            </div>
+            <button
+              onclick="cancelMeetPrep(<%= plan.id %>)"
+              class="text-brand-500 hover:text-red-500 transition p-1.5 flex-shrink-0"
+              title="Cancel plan"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="divide-y divide-gray-800">
+          <% item.weeksList.forEach(function(week) { %>
+            <details class="p-4 sm:p-6" <%= (week.weekNumber === item.currentWeek || (item.currentWeek === 0 && week.weekNumber === 1)) ? 'open' : '' %>>
+              <summary class="cursor-pointer font-medium text-brand-900 select-none">
+                Week <%= week.weekNumber %>
+                <% if (week.weekNumber === item.currentWeek) { %>
+                  <span class="text-xs text-yellow-500 font-normal ml-2">Current</span>
+                <% } %>
+              </summary>
+              <div class="mt-3 space-y-2">
+                <% if (week.entries.length === 0) { %>
+                  <p class="text-sm text-brand-600">No training days this week.</p>
+                <% } %>
+                <% week.entries.forEach(function(entry) { %>
+                  <a href="/app?date=<%= fmtDateInput(entry.date) %>"
+                    class="block border border-gray-800 rounded-lg p-3 hover:bg-gray-800 transition">
+                    <div class="flex items-center justify-between gap-3">
+                      <div>
+                        <p class="text-sm font-medium text-brand-900"><%= entry.exercise %></p>
+                        <p class="text-xs text-brand-600">
+                          <%= entry.sets %>x<%= entry.reps %> @ <%= entry.weight %> lbs
+                          <% if (entry.rpe) { %> &middot; RPE <%= entry.rpe %><% } %>
+                        </p>
+                      </div>
+                      <span class="text-xs text-brand-500 whitespace-nowrap">
+                        <%= fmtDate(entry.date) %>
+                      </span>
+                    </div>
+                  </a>
+                <% }); %>
+              </div>
+            </details>
+          <% }); %>
+        </div>
+      </div>
+    <% }); %>
+  <% } %>
+
+  <!-- Past Plans -->
+  <% if (pastPlans.length > 0) { %>
+    <div class="bg-gray-900 rounded-lg border border-gray-800">
+      <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800">
+        <h2 class="text-lg font-bold text-brand-900">Past Plans</h2>
+      </div>
+      <div class="divide-y divide-gray-800">
+        <% pastPlans.forEach(function(plan) { %>
+          <div class="px-4 sm:px-6 py-3 flex items-center justify-between gap-3" id="meet-prep-<%= plan.id %>">
+            <div>
+              <p class="text-sm font-medium text-brand-900"><%= plan.name %></p>
+              <p class="text-xs text-brand-600"><%= fmtDate(plan.startDate) %> &rarr; <%= fmtDate(plan.endDate) %></p>
+            </div>
+            <button onclick="cancelMeetPrep(<%= plan.id %>)" class="text-brand-500 hover:text-red-500 transition p-1.5" title="Remove">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Start a New Plan -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800">
+    <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800">
+      <h2 class="text-lg font-bold text-brand-900">Start a New Plan</h2>
+    </div>
+
+    <div class="border-b border-gray-800">
+      <nav class="flex">
+        <button onclick="showPlanTab('custom')" id="tab-custom"
+          class="plan-tab-button flex-1 px-4 py-3 text-sm font-medium text-brand-900 border-b-2 border-yellow-500">
+          Build Your Own
+        </button>
+        <button onclick="showPlanTab('premade')" id="tab-premade"
+          class="plan-tab-button flex-1 px-4 py-3 text-sm font-medium text-brand-600 border-b-2 border-transparent">
+          Choose a Premade Plan
+        </button>
+      </nav>
+    </div>
+
+    <!-- Build Your Own -->
+    <div id="content-custom" class="plan-tab-content p-4 sm:p-6 space-y-4">
+      <p class="text-xs text-brand-500">
+        Creates blank <%= meetLifts.join(' / ') %> training days on your chosen weekdays between the start and
+        finish date, at a flat starting weight and rep scheme you set now. No automatic progression &mdash; you
+        adjust the weight yourself as you go, right from the Workout Log.
+      </p>
+      <form id="custom-plan-form" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Start Date</label>
+            <input type="date" name="startDate" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Finish Date</label>
+            <input type="date" name="endDate" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-2">Training Days</label>
+          <div class="flex flex-wrap gap-2">
+            <% WEEKDAY_LABELS.forEach(function(label, idx) { %>
+              <label class="flex items-center gap-1.5 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-brand-700 cursor-pointer">
+                <input type="checkbox" name="trainingDays" value="<%= idx %>" class="accent-yellow-500">
+                <%= label %>
+              </label>
+            <% }); %>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Sets</label>
+            <input type="number" name="sets" min="1" value="5" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Reps</label>
+            <input type="number" name="reps" min="1" value="5" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Squat Weight (lbs)</label>
+            <input type="number" name="squatWeight" min="0" required placeholder="225" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Bench Weight (lbs)</label>
+            <input type="number" name="benchWeight" min="0" required placeholder="185" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Deadlift Weight (lbs)</label>
+            <input type="number" name="deadliftWeight" min="0" required placeholder="275" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+        </div>
+
+        <div id="custom-plan-error" class="hidden bg-red-950 border border-red-900 rounded-lg p-3 text-sm text-red-400"></div>
+
+        <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-lg transition">
+          Create Plan
+        </button>
+      </form>
+    </div>
+
+    <!-- Premade Plan -->
+    <div id="content-premade" class="plan-tab-content hidden p-4 sm:p-6 space-y-4">
+      <p class="text-xs text-brand-500">
+        Linear progression with autoregulation: weight is calculated from your current 1-rep maxes and climbs
+        week to week toward the meet, with an RPE target each week as a guide &mdash; go a little lighter or
+        heavier than the number if that RPE tells you to. The final week is a light taper.
+      </p>
+      <form id="premade-plan-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-2">Duration</label>
+          <div class="flex gap-2">
+            <% premadeDurations.forEach(function(weeks, idx) { %>
+              <label class="flex-1 text-center bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-brand-700 cursor-pointer has-[:checked]:border-yellow-500 has-[:checked]:text-yellow-500">
+                <input type="radio" name="weeks" value="<%= weeks %>" class="sr-only" <%= idx === 1 ? 'checked' : '' %>>
+                <%= weeks %> Weeks
+              </label>
+            <% }); %>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-1">Start Date</label>
+          <input type="date" name="startDate" required class="w-full sm:w-64 bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-brand-700 mb-2">Training Days <span class="text-brand-500 font-normal">(3 recommended &mdash; one per lift)</span></label>
+          <div class="flex flex-wrap gap-2">
+            <% WEEKDAY_LABELS.forEach(function(label, idx) { %>
+              <label class="flex items-center gap-1.5 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-brand-700 cursor-pointer">
+                <input type="checkbox" name="trainingDays" value="<%= idx %>" class="accent-yellow-500" <%= [1,3,5].includes(idx) ? 'checked' : '' %>>
+                <%= label %>
+              </label>
+            <% }); %>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Squat 1RM (lbs)</label>
+            <input type="number" name="squatMax" min="1" required placeholder="315" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Bench 1RM (lbs)</label>
+            <input type="number" name="benchMax" min="1" required placeholder="225" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-700 mb-1">Deadlift 1RM (lbs)</label>
+            <input type="number" name="deadliftMax" min="1" required placeholder="365" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+        </div>
+
+        <div id="premade-plan-error" class="hidden bg-red-950 border border-red-900 rounded-lg p-3 text-sm text-red-400"></div>
+
+        <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-lg transition">
+          Generate Plan
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showPlanTab(tab) {
+    document.querySelectorAll('.plan-tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(`content-${tab}`).classList.remove('hidden');
+    document.querySelectorAll('.plan-tab-button').forEach(btn => {
+      btn.classList.remove('border-yellow-500', 'text-brand-900');
+      btn.classList.add('border-transparent', 'text-brand-600');
+    });
+    const btn = document.getElementById(`tab-${tab}`);
+    btn.classList.add('border-yellow-500', 'text-brand-900');
+    btn.classList.remove('border-transparent', 'text-brand-600');
+  }
+
+  function getCheckedValues(form, name) {
+    return Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map(el => el.value);
+  }
+
+  async function submitPlanForm(form, planType, errorElId) {
+    const errorEl = document.getElementById(errorElId);
+    errorEl.classList.add('hidden');
+
+    const data = { planType };
+    new FormData(form).forEach((value, key) => {
+      if (key === 'trainingDays') return;
+      data[key] = value;
+    });
+    data.trainingDays = getCheckedValues(form, 'trainingDays');
+
+    try {
+      const response = await fetch('/api/meet-prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        errorEl.textContent = result.message || 'Failed to create plan';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      location.reload();
+    } catch (error) {
+      errorEl.textContent = 'Error creating plan';
+      errorEl.classList.remove('hidden');
+    }
+  }
+
+  document.getElementById('custom-plan-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitPlanForm(e.target, 'custom', 'custom-plan-error');
+  });
+
+  document.getElementById('premade-plan-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitPlanForm(e.target, 'premade', 'premade-plan-error');
+  });
+
+  async function cancelMeetPrep(id) {
+    if (!confirm('Cancel this plan? Any not-yet-happened training days will be removed; days already logged stay in your history.')) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/meet-prep/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Failed to cancel plan');
+      }
+    } catch (error) {
+      alert('Error cancelling plan');
+    }
+  }
+</script>
+
+<%- include('partials/footer') %>

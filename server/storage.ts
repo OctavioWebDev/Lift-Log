@@ -14,6 +14,8 @@ import {
   type RefreshToken,
   type PushToken,
   type FoodCacheEntry,
+  type MeetPrep,
+  type InsertMeetPrep,
   users,
   workoutSets,
   goals,
@@ -22,9 +24,23 @@ import {
   refreshTokens,
   pushTokens,
   foodCache,
+  meetPreps,
 } from "../shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, like, gte, lt } from "drizzle-orm";
+import { eq, desc, and, or, like, gte, lt, isNull } from "drizzle-orm";
+
+function startOfUTCDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+// A meet-prep-generated row dated today or later is just a prescription
+// until proven otherwise, so history/goal aggregations should ignore it —
+// rows the user logged directly (meetPrepId is null) always count
+// immediately as normal. Once a plan day's date has fully passed, it's
+// assumed performed as prescribed even if never edited.
+function excludeUpcomingPlanEntries(startOfToday: Date) {
+  return or(isNull(workoutSets.meetPrepId), lt(workoutSets.date, startOfToday));
+}
 
 export interface IStorage {
   // User methods
@@ -54,8 +70,19 @@ export interface IStorage {
   getWorkoutSetsForDate(userId: string, date: string): Promise<WorkoutSet[]>;
   getAllWorkoutSets(userId: string): Promise<WorkoutSet[]>;
   createWorkoutSet(workoutSet: InsertWorkoutSet): Promise<WorkoutSet>;
+  createWorkoutSetsBulk(workoutSetsToInsert: InsertWorkoutSet[]): Promise<WorkoutSet[]>;
   updateWorkoutSet(userId: string, id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined>;
   deleteWorkoutSet(userId: string, id: number): Promise<void>;
+
+  // Meet prep methods — all scoped by userId
+  createMeetPrep(meetPrep: InsertMeetPrep): Promise<MeetPrep>;
+  getMeetPreps(userId: string): Promise<MeetPrep[]>;
+  getMeetPrep(userId: string, id: number): Promise<MeetPrep | undefined>;
+  getWorkoutSetsForMeetPrep(userId: string, meetPrepId: number): Promise<WorkoutSet[]>;
+  // Deletes not-yet-happened planned entries for this plan and detaches
+  // (but keeps) any already-past ones, since those are now real training
+  // history regardless of where they came from.
+  deleteMeetPrep(userId: string, id: number): Promise<void>;
 
   // Recomputes a goal's `current` from the best estimated 1RM (Epley) ever
   // logged for that exercise, so goal progress tracks workout history
@@ -243,6 +270,11 @@ export class DatabaseStorage implements IStorage {
     return workoutSet;
   }
 
+  async createWorkoutSetsBulk(workoutSetsToInsert: InsertWorkoutSet[]): Promise<WorkoutSet[]> {
+    if (workoutSetsToInsert.length === 0) return [];
+    return db.insert(workoutSets).values(workoutSetsToInsert).returning();
+  }
+
   async updateWorkoutSet(userId: string, id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined> {
     const [workoutSet] = await db
       .update(workoutSets)
@@ -258,14 +290,80 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(workoutSets.id, id), eq(workoutSets.userId, userId)));
   }
 
+  // ─── Meet Prep Methods ───────────────────────────────────────────────────────
+
+  async createMeetPrep(insertMeetPrep: InsertMeetPrep): Promise<MeetPrep> {
+    const [meetPrep] = await db.insert(meetPreps).values(insertMeetPrep).returning();
+    return meetPrep;
+  }
+
+  async getMeetPreps(userId: string): Promise<MeetPrep[]> {
+    return db
+      .select()
+      .from(meetPreps)
+      .where(eq(meetPreps.userId, userId))
+      .orderBy(desc(meetPreps.startDate));
+  }
+
+  async getMeetPrep(userId: string, id: number): Promise<MeetPrep | undefined> {
+    const [meetPrep] = await db
+      .select()
+      .from(meetPreps)
+      .where(and(eq(meetPreps.id, id), eq(meetPreps.userId, userId)));
+    return meetPrep || undefined;
+  }
+
+  async getWorkoutSetsForMeetPrep(userId: string, meetPrepId: number): Promise<WorkoutSet[]> {
+    return db
+      .select()
+      .from(workoutSets)
+      .where(and(eq(workoutSets.userId, userId), eq(workoutSets.meetPrepId, meetPrepId)))
+      .orderBy(workoutSets.date);
+  }
+
+  async deleteMeetPrep(userId: string, id: number): Promise<void> {
+    const meetPrep = await this.getMeetPrep(userId, id);
+    if (!meetPrep) return;
+
+    // "Today or later" matches the same boundary used elsewhere to decide
+    // whether a plan entry counts as real yet (see excludeUpcomingPlanEntries).
+    const startOfToday = startOfUTCDay(new Date());
+    // Not-yet-due plan entries are scrapped entirely...
+    await db
+      .delete(workoutSets)
+      .where(and(
+        eq(workoutSets.userId, userId),
+        eq(workoutSets.meetPrepId, id),
+        gte(workoutSets.date, startOfToday),
+      ));
+    // ...but already-past ones are real training history now — keep them,
+    // just detach them from the plan being deleted.
+    await db
+      .update(workoutSets)
+      .set({ meetPrepId: null })
+      .where(and(
+        eq(workoutSets.userId, userId),
+        eq(workoutSets.meetPrepId, id),
+        lt(workoutSets.date, startOfToday),
+      ));
+
+    await db.delete(meetPreps).where(and(eq(meetPreps.id, id), eq(meetPreps.userId, userId)));
+  }
+
   async syncGoalCurrentFromHistory(userId: string, exercise: string): Promise<void> {
     const goal = await this.getGoalByExercise(userId, exercise);
     if (!goal) return;
 
+    // Excludes not-yet-due meet-prep plan prescriptions — a goal's progress
+    // should only reflect real lifts.
     const rows = await db
       .select({ weight: workoutSets.weight, reps: workoutSets.reps })
       .from(workoutSets)
-      .where(and(eq(workoutSets.userId, userId), eq(workoutSets.exercise, exercise)));
+      .where(and(
+        eq(workoutSets.userId, userId),
+        eq(workoutSets.exercise, exercise),
+        excludeUpcomingPlanEntries(startOfUTCDay(new Date())),
+      ));
     if (rows.length === 0) return;
 
     let bestOneRepMax = -Infinity;
@@ -436,10 +534,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStrongestExercise(userId: string): Promise<string | undefined> {
+    // Excludes not-yet-due meet-prep plan prescriptions — this should
+    // reflect what the user has actually lifted.
     const rows = await db
       .select({ exercise: workoutSets.exercise, weight: workoutSets.weight, reps: workoutSets.reps })
       .from(workoutSets)
-      .where(eq(workoutSets.userId, userId));
+      .where(and(eq(workoutSets.userId, userId), excludeUpcomingPlanEntries(startOfUTCDay(new Date()))));
 
     let best: string | undefined;
     let bestOneRepMax = -Infinity;
@@ -455,10 +555,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]> {
+    // Excludes not-yet-due meet-prep plan prescriptions so the progress
+    // chart and PR markers only reflect real lifts.
     return db
       .select()
       .from(workoutSets)
-      .where(and(eq(workoutSets.userId, userId), eq(workoutSets.exercise, exercise)))
+      .where(and(
+        eq(workoutSets.userId, userId),
+        eq(workoutSets.exercise, exercise),
+        excludeUpcomingPlanEntries(startOfUTCDay(new Date())),
+      ))
       .orderBy(workoutSets.date);
   }
 
@@ -468,7 +574,11 @@ export class DatabaseStorage implements IStorage {
     const rows = await db
       .select({ date: workoutSets.date })
       .from(workoutSets)
-      .where(and(eq(workoutSets.userId, userId), gte(workoutSets.date, since)));
+      .where(and(
+        eq(workoutSets.userId, userId),
+        gte(workoutSets.date, since),
+        excludeUpcomingPlanEntries(startOfUTCDay(new Date())),
+      ));
     const dates = new Set(
       rows.map((r) => (r.date instanceof Date ? r.date : new Date(r.date)).toISOString().split("T")[0])
     );
