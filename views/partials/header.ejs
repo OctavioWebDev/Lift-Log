@@ -266,4 +266,49 @@
           userMenu.classList.add('hidden');
         }
       });
+
+      // Shared "what does this mean?" popover for info icons next to jargon
+      // like RPE or Est. 1RM — one popover element reused everywhere so each
+      // call site only needs an icon + explanation string, no markup of its own.
+      function showInfoTooltip(event, text) {
+        event.preventDefault();
+        event.stopPropagation();
+        let tooltip = document.getElementById('global-info-tooltip');
+        if (!tooltip) {
+          tooltip = document.createElement('div');
+          tooltip.id = 'global-info-tooltip';
+          tooltip.className = 'fixed z-50 max-w-xs bg-gray-800 border border-gray-700 text-brand-900 text-xs leading-relaxed rounded-lg p-3 shadow-lg hidden';
+          document.body.appendChild(tooltip);
+        }
+        const alreadyOpenForThis = tooltip.dataset.for === text && !tooltip.classList.contains('hidden');
+        tooltip.classList.add('hidden');
+        if (alreadyOpenForThis) return;
+
+        tooltip.textContent = text;
+        tooltip.dataset.for = text;
+        tooltip.classList.remove('hidden');
+
+        const btn = event.currentTarget;
+        const rect = btn.getBoundingClientRect();
+        const maxLeft = window.innerWidth - 272;
+        const left = Math.min(rect.left, Math.max(8, maxLeft));
+        tooltip.style.top = (rect.bottom + 6) + 'px';
+        tooltip.style.left = left + 'px';
+      }
+
+      document.addEventListener('click', function (e) {
+        const tooltip = document.getElementById('global-info-tooltip');
+        if (tooltip && !tooltip.contains(e.target)) {
+          tooltip.classList.add('hidden');
+        }
+      });
+
+      // Eyeball toggle for password fields — shows/hides the typed password.
+      function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.querySelector('.eye-icon').classList.toggle('hidden', show);
+        btn.querySelector('.eye-off-icon').classList.toggle('hidden', !show);
+      }
     </script>
