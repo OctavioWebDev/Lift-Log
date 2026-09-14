@@ -31,6 +31,7 @@ export async function requireApiAuth(req: Request, res: Response, next: NextFunc
     email: user.email,
     isAdmin: user.isAdmin || false,
     mustChangePassword: user.mustChangePassword || false,
+    avatarUrl: user.avatarUrl || null,
   };
   req.userId = user.id;
   next();

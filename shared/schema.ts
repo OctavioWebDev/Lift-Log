@@ -30,6 +30,9 @@ export const users = sqliteTable("users", {
   sex: text("sex"), // 'male' | 'female' | 'prefer_not_to_say'
   bodyweight: real("bodyweight"), // lbs
   heightInches: real("height_inches"),
+  // Public URL path (e.g. "/avatars/<file>") of an uploaded profile
+  // picture — see server/routes.ts' POST /profile/avatar.
+  avatarUrl: text("avatar_url"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
