@@ -13,6 +13,7 @@ import { searchFoods } from "./food";
 import { registerApiV1Routes } from "./routes/api-v1";
 import { MEET_LIFTS, PREMADE_DURATIONS, generatePremadePlan, generateCustomPlan, groupEntriesByWeek } from "./meet-prep";
 import { avatarUpload, resizeAndSaveAvatar, deleteAvatarFile } from "./avatar-upload";
+import { ALL_BADGES, STRENGTH_CLUBS, TOTAL_WORKOUT_MILESTONES, strengthBadgeId } from "@shared/badges";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -459,6 +460,10 @@ export async function registerRoutes(
       const allWorkouts = (await storage.getAllWorkoutSets(req.session!.userId!))
         .filter(w => !w.meetPrepId || new Date(w.date) < startOfToday);
       const goals = await storage.getAllGoals(req.session!.userId!);
+      // Also catches up any badges earned from history predating this
+      // feature — see the fuller comment on GET /badges.
+      await storage.checkAndAwardBadges(req.session!.userId!);
+      const earnedBadges = await storage.getUserBadges(req.session!.userId!);
 
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
@@ -473,7 +478,9 @@ export async function registerRoutes(
       const stats = {
         workoutsThisWeek: workoutsThisWeek.length,
         totalVolume: totalVolume,
-        activeGoals: goals.length
+        activeGoals: goals.length,
+        badgeCount: earnedBadges.length,
+        totalBadgeCount: ALL_BADGES.length,
       };
       const recentWorkouts = allWorkouts.slice(0, 10);
       const heatmapDays = 84; // 12 weeks
@@ -542,6 +549,58 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error("Error rendering goals page:", error);
+      res.status(500).send("Error loading page");
+    }
+  });
+
+  app.get("/badges", requireSubscription, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      // Catches up any badges the user already qualifies for but hasn't
+      // been awarded yet — the only place that matters is existing history
+      // predating this feature, since every workout create/update also
+      // calls this.
+      await storage.checkAndAwardBadges(userId);
+      const earned = await storage.getUserBadges(userId);
+      const earnedByBadgeId = new Map(earned.map((b) => [b.badgeId, b]));
+
+      const now = new Date();
+      const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const workouts = (await storage.getAllWorkoutSets(userId))
+        .filter((w) => !w.meetPrepId || new Date(w.date) < startOfToday);
+      const bestByExercise = new Map<string, number>();
+      for (const w of workouts) {
+        const e1rm = w.weight * (1 + w.reps / 30);
+        if (e1rm > (bestByExercise.get(w.exercise) ?? 0)) bestByExercise.set(w.exercise, e1rm);
+      }
+
+      const progressByBadgeId = new Map<string, { current: number; target: number }>();
+      for (const club of STRENGTH_CLUBS) {
+        progressByBadgeId.set(strengthBadgeId(club.exercise, club.weight), {
+          current: Math.round(bestByExercise.get(club.exercise) ?? 0),
+          target: club.weight,
+        });
+      }
+      for (const m of TOTAL_WORKOUT_MILESTONES) {
+        progressByBadgeId.set(m.id, { current: workouts.length, target: m.count });
+      }
+
+      const badges = ALL_BADGES.map((badge) => ({
+        ...badge,
+        earnedAt: earnedByBadgeId.get(badge.id)?.earnedAt ?? null,
+        progress: progressByBadgeId.get(badge.id) ?? null,
+      }));
+
+      res.render("badges", {
+        title: "Badges - Chi-Rho Lifts",
+        user: req.user,
+        badges,
+        earnedCount: earned.length,
+        totalCount: ALL_BADGES.length,
+        totalWorkouts: workouts.length,
+      });
+    } catch (error) {
+      console.error("Error rendering badges page:", error);
       res.status(500).send("Error loading page");
     }
   });
@@ -826,6 +885,7 @@ export async function registerRoutes(
       }
       const workoutSet = await storage.createWorkoutSet(result.data);
       await storage.syncGoalCurrentFromHistory(req.session!.userId!, workoutSet.exercise);
+      await storage.checkAndAwardBadges(req.session!.userId!);
       const html = await new Promise<string>((resolve, reject) => {
         res.app.render("partials/workout-item", { workout: workoutSet }, (err, html) => {
           if (err) reject(err);
@@ -858,6 +918,7 @@ export async function registerRoutes(
       if (previous && previous.exercise !== workoutSet.exercise) {
         await storage.syncGoalCurrentFromHistory(req.session!.userId!, previous.exercise);
       }
+      await storage.checkAndAwardBadges(req.session!.userId!);
       res.json(workoutSet);
     } catch (error) {
       console.error("Error updating workout set:", error);

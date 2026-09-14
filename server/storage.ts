@@ -16,6 +16,7 @@ import {
   type FoodCacheEntry,
   type MeetPrep,
   type InsertMeetPrep,
+  type UserBadge,
   users,
   workoutSets,
   goals,
@@ -25,9 +26,11 @@ import {
   pushTokens,
   foodCache,
   meetPreps,
+  userBadges,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, like, gte, lt, isNull } from "drizzle-orm";
+import { computeEarnedBadgeIds } from "./badges";
 
 function startOfUTCDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -147,6 +150,14 @@ export interface IStorage {
     date: Date;
   }>>;
   getWorkoutDatesInRange(userId: string, days: number): Promise<string[]>;
+
+  // Badge methods (gamification) — see shared/badges.ts for the catalog.
+  getUserBadges(userId: string): Promise<UserBadge[]>;
+  // Recomputes earned badges from workout history and inserts any newly
+  // qualified ones (already-earned badges are never revoked). Returns just
+  // the badges newly earned by this call, if any — callers can use that to
+  // surface a "badge earned!" notice.
+  checkAndAwardBadges(userId: string): Promise<UserBadge[]>;
   getNutritionHistory(userId: string, days: number): Promise<Array<{
     date: string;
     calories: number;
@@ -607,6 +618,42 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return Array.from(bestByExercise.values()).sort((a, b) => b.estimatedOneRepMax - a.estimatedOneRepMax);
+  }
+
+  // ─── Badge Methods (gamification) ────────────────────────────────────────────
+
+  async getUserBadges(userId: string): Promise<UserBadge[]> {
+    return db
+      .select()
+      .from(userBadges)
+      .where(eq(userBadges.userId, userId))
+      .orderBy(desc(userBadges.earnedAt));
+  }
+
+  async checkAndAwardBadges(userId: string): Promise<UserBadge[]> {
+    // Excludes not-yet-due meet-prep plan prescriptions — badges should only
+    // reflect real lifts, same as every other stats method above.
+    const rows = await db
+      .select()
+      .from(workoutSets)
+      .where(and(eq(workoutSets.userId, userId), excludeUpcomingPlanEntries(startOfUTCDay(new Date()))));
+
+    const earnedIds = computeEarnedBadgeIds(rows);
+    if (earnedIds.size === 0) return [];
+
+    const existing = await db
+      .select({ badgeId: userBadges.badgeId })
+      .from(userBadges)
+      .where(eq(userBadges.userId, userId));
+    const existingIds = new Set(existing.map((e) => e.badgeId));
+
+    const newIds = Array.from(earnedIds).filter((id) => !existingIds.has(id));
+    if (newIds.length === 0) return [];
+
+    return db
+      .insert(userBadges)
+      .values(newIds.map((badgeId) => ({ userId, badgeId })))
+      .returning();
   }
 
   async getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]> {

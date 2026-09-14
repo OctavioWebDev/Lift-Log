@@ -109,6 +109,27 @@ export type MeetPrep = typeof meetPreps.$inferSelect;
 export type InsertMeetPrep = typeof meetPreps.$inferInsert;
 
 // ============================================================================
+// USER BADGES TABLE
+// ============================================================================
+// Gamification: earned achievement badges. The catalog of possible badges
+// (name/description/icon) lives in shared/badges.ts — this table only
+// records which badge ids a user has earned and when. Awarded automatically
+// after workout sets are logged/updated; see server/badges.ts
+// computeEarnedBadgeIds and storage.checkAndAwardBadges.
+export const userBadges = sqliteTable("user_badges", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  badgeId: text("badge_id").notNull(),
+  earnedAt: integer("earned_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+}, (table) => ({
+  userBadgeUnique: uniqueIndex("user_badges_user_badge_unique").on(table.userId, table.badgeId),
+}));
+
+export type UserBadge = typeof userBadges.$inferSelect;
+
+// ============================================================================
 // WORKOUT SETS TABLE
 // ============================================================================
 // shared/schema.ts
