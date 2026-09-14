@@ -70,6 +70,7 @@ export interface IStorage {
     sex: string | null;
     bodyweight: number | null;
     heightInches: number | null;
+    avatarUrl: string | null;
   }>): Promise<User | undefined>;
 
   // Workout methods — all scoped by userId
@@ -225,6 +226,7 @@ export class DatabaseStorage implements IStorage {
     sex: string | null;
     bodyweight: number | null;
     heightInches: number | null;
+    avatarUrl: string | null;
   }>): Promise<User | undefined> {
     const [user] = await db
       .update(users)

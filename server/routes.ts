@@ -12,6 +12,7 @@ import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
 import { searchFoods } from "./food";
 import { registerApiV1Routes } from "./routes/api-v1";
 import { MEET_LIFTS, PREMADE_DURATIONS, generatePremadePlan, generateCustomPlan, groupEntriesByWeek } from "./meet-prep";
+import { avatarUpload, deleteAvatarFile } from "./avatar-upload";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -341,6 +342,75 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error("Error updating lifter info:", error);
+      res.status(500).send("Error updating profile");
+    }
+  });
+
+  // Wrapped manually (rather than passed as normal middleware) so a
+  // rejected file type or oversized upload re-renders the profile page
+  // with a friendly message instead of hitting Express's default error
+  // handler.
+  app.post("/profile/avatar", requireAuth, (req, res) => {
+    avatarUpload.single("avatar")(req, res, async (err: any) => {
+      try {
+        const userId = req.session!.userId!;
+        const currentUser = await storage.getUser(userId);
+        if (!currentUser) return res.redirect("/login");
+
+        const renderResult = (avatarError: string | null, avatarSuccess: boolean, profileUser = currentUser, user = req.user) =>
+          res.render("profile", {
+            title: "Profile - Chi-Rho Lifts",
+            user,
+            profileUser,
+            accountError: null,
+            accountSuccess: false,
+            lifterError: null,
+            lifterSuccess: false,
+            avatarError,
+            avatarSuccess,
+          });
+
+        if (err) {
+          return renderResult(err.message || "Failed to upload image", false);
+        }
+        if (!req.file) {
+          return renderResult("Choose an image to upload", false);
+        }
+
+        const newAvatarUrl = `/avatars/${req.file.filename}`;
+        deleteAvatarFile(currentUser.avatarUrl);
+        const updatedUser = await storage.updateUser(userId, { avatarUrl: newAvatarUrl });
+
+        renderResult(null, true, updatedUser || currentUser, { ...req.user!, avatarUrl: newAvatarUrl });
+      } catch (error) {
+        console.error("Error uploading avatar:", error);
+        res.status(500).send("Error updating profile");
+      }
+    });
+  });
+
+  app.post("/profile/avatar/remove", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.redirect("/login");
+
+      deleteAvatarFile(currentUser.avatarUrl);
+      const updatedUser = await storage.updateUser(userId, { avatarUrl: null });
+
+      res.render("profile", {
+        title: "Profile - Chi-Rho Lifts",
+        user: { ...req.user!, avatarUrl: null },
+        profileUser: updatedUser || currentUser,
+        accountError: null,
+        accountSuccess: false,
+        lifterError: null,
+        lifterSuccess: false,
+        avatarError: null,
+        avatarSuccess: false,
+      });
+    } catch (error) {
+      console.error("Error removing avatar:", error);
       res.status(500).send("Error updating profile");
     }
   });

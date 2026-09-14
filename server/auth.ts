@@ -19,6 +19,7 @@ declare global {
         email: string | null;
         isAdmin: boolean;
         mustChangePassword: boolean;
+        avatarUrl: string | null;
       };
       userId?: string; // set by requireApiAuth for token-authenticated (mobile) requests
     }
@@ -46,6 +47,7 @@ export async function attachUser(req: Request, res: Response, next: NextFunction
         email: user.email,
         isAdmin: user.isAdmin || false,  // ← Add this
         mustChangePassword: user.mustChangePassword || false,
+        avatarUrl: user.avatarUrl || null,
       };
     }
   }
