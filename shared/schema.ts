@@ -105,7 +105,13 @@ export const insertWorkoutSetSchema = createInsertSchema(workoutSets, {
   sets: z.coerce.number().int().positive(),
   weight: z.coerce.number().nonnegative(),
   reps: z.coerce.number().int().positive(),
-  rpe: z.coerce.number().min(1).max(10).optional().nullable(),
+  // Optional field, but plain HTML forms submit "" (not omitted) when left
+  // blank, which z.coerce.number() would otherwise turn into 0 and fail
+  // .min(1) — treat blank/null/undefined uniformly as "no RPE given".
+  rpe: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? null : val),
+    z.coerce.number().min(1).max(10).nullable()
+  ).optional(),
 }).omit({
   id: true,
 });
@@ -115,7 +121,13 @@ export const updateWorkoutSetSchema = createInsertSchema(workoutSets, {
   sets: z.coerce.number().int().positive(),
   weight: z.coerce.number().nonnegative(),
   reps: z.coerce.number().int().positive(),
-  rpe: z.coerce.number().min(1).max(10).optional().nullable(),
+  // Optional field, but plain HTML forms submit "" (not omitted) when left
+  // blank, which z.coerce.number() would otherwise turn into 0 and fail
+  // .min(1) — treat blank/null/undefined uniformly as "no RPE given".
+  rpe: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? null : val),
+    z.coerce.number().min(1).max(10).nullable()
+  ).optional(),
 }).omit({
   id: true,
 }).partial();
@@ -135,6 +147,8 @@ export const goals = sqliteTable("goals", {
   current: integer("current").notNull(),
   target: integer("target").notNull(),
   unit: text("unit").notNull().default("lbs"),
+  // Date the user wants to hit the target by; optional.
+  targetDate: integer("target_date", { mode: "timestamp" }),
   // No SQL-level default on purpose: drizzle-orm's insert path prefers a
   // column's SQL default over $defaultFn whenever both are set, which would
   // make every new row's updatedAt stick at that constant instead of "now".
@@ -152,6 +166,7 @@ export const goals = sqliteTable("goals", {
 export const insertGoalSchema = createInsertSchema(goals, {
   current: z.coerce.number().nonnegative(),
   target: z.coerce.number().positive(),
+  targetDate: z.string().nullable().optional().transform((val) => (val ? new Date(val) : null)),
 }).omit({
   id: true,
 });
@@ -159,6 +174,7 @@ export const insertGoalSchema = createInsertSchema(goals, {
 export const updateGoalSchema = createInsertSchema(goals, {
   current: z.coerce.number().nonnegative(),
   target: z.coerce.number().positive(),
+  targetDate: z.string().nullable().optional().transform((val) => (val ? new Date(val) : null)),
 }).omit({
   id: true,
 }).partial();

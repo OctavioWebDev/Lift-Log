@@ -50,11 +50,18 @@ export interface IStorage {
   }>): Promise<User | undefined>;
 
   // Workout methods — all scoped by userId
+  getWorkoutSet(userId: string, id: number): Promise<WorkoutSet | undefined>;
   getWorkoutSetsForDate(userId: string, date: string): Promise<WorkoutSet[]>;
   getAllWorkoutSets(userId: string): Promise<WorkoutSet[]>;
   createWorkoutSet(workoutSet: InsertWorkoutSet): Promise<WorkoutSet>;
   updateWorkoutSet(userId: string, id: number, updates: UpdateWorkoutSet): Promise<WorkoutSet | undefined>;
   deleteWorkoutSet(userId: string, id: number): Promise<void>;
+
+  // Recomputes a goal's `current` from the best estimated 1RM (Epley) ever
+  // logged for that exercise, so goal progress tracks workout history
+  // automatically. No-op if the user has no goal for that exercise, or has
+  // no logged sets for it yet (keeps whatever `current` was set manually).
+  syncGoalCurrentFromHistory(userId: string, exercise: string): Promise<void>;
 
   // Goal methods — all scoped by userId
   getAllGoals(userId: string): Promise<Goal[]>;
@@ -213,6 +220,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(workoutSets.date));
   }
 
+  async getWorkoutSet(userId: string, id: number): Promise<WorkoutSet | undefined> {
+    const [workoutSet] = await db
+      .select()
+      .from(workoutSets)
+      .where(and(eq(workoutSets.id, id), eq(workoutSets.userId, userId)));
+    return workoutSet || undefined;
+  }
+
   async createWorkoutSet(insertWorkoutSet: InsertWorkoutSet): Promise<WorkoutSet> {
     if (insertWorkoutSet.clientId) {
       const [existing] = await db
@@ -241,6 +256,28 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(workoutSets)
       .where(and(eq(workoutSets.id, id), eq(workoutSets.userId, userId)));
+  }
+
+  async syncGoalCurrentFromHistory(userId: string, exercise: string): Promise<void> {
+    const goal = await this.getGoalByExercise(userId, exercise);
+    if (!goal) return;
+
+    const rows = await db
+      .select({ weight: workoutSets.weight, reps: workoutSets.reps })
+      .from(workoutSets)
+      .where(and(eq(workoutSets.userId, userId), eq(workoutSets.exercise, exercise)));
+    if (rows.length === 0) return;
+
+    let bestOneRepMax = -Infinity;
+    for (const row of rows) {
+      const estimatedOneRepMax = row.weight * (1 + row.reps / 30);
+      if (estimatedOneRepMax > bestOneRepMax) bestOneRepMax = estimatedOneRepMax;
+    }
+
+    const current = Math.round(bestOneRepMax);
+    if (current !== goal.current) {
+      await db.update(goals).set({ current }).where(eq(goals.id, goal.id));
+    }
   }
 
   // ─── Goal Methods ────────────────────────────────────────────────────────────

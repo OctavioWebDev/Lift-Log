@@ -321,6 +321,7 @@ export function registerApiV1Routes(app: Express) {
         return res.status(400).json({ message: fromError(result.error).toString() });
       }
       const workoutSet = await storage.createWorkoutSet(result.data);
+      await storage.syncGoalCurrentFromHistory(req.userId!, workoutSet.exercise);
       res.status(201).json(workoutSet);
     } catch (error) {
       console.error("API error creating workout set:", error);
@@ -336,8 +337,13 @@ export function registerApiV1Routes(app: Express) {
       if (!result.success) {
         return res.status(400).json({ message: fromError(result.error).toString() });
       }
+      const previous = await storage.getWorkoutSet(req.userId!, id);
       const workoutSet = await storage.updateWorkoutSet(req.userId!, id, result.data);
       if (!workoutSet) return res.status(404).json({ message: "Workout set not found" });
+      await storage.syncGoalCurrentFromHistory(req.userId!, workoutSet.exercise);
+      if (previous && previous.exercise !== workoutSet.exercise) {
+        await storage.syncGoalCurrentFromHistory(req.userId!, previous.exercise);
+      }
       res.json(workoutSet);
     } catch (error) {
       console.error("API error updating workout set:", error);
@@ -349,7 +355,11 @@ export function registerApiV1Routes(app: Express) {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+      const existing = await storage.getWorkoutSet(req.userId!, id);
       await storage.deleteWorkoutSet(req.userId!, id);
+      if (existing) {
+        await storage.syncGoalCurrentFromHistory(req.userId!, existing.exercise);
+      }
       res.status(204).send();
     } catch (error) {
       console.error("API error deleting workout set:", error);
@@ -376,7 +386,9 @@ export function registerApiV1Routes(app: Express) {
         return res.status(400).json({ message: fromError(result.error).toString() });
       }
       const goal = await storage.createGoal(result.data);
-      res.status(201).json(goal);
+      await storage.syncGoalCurrentFromHistory(req.userId!, goal.exercise);
+      const freshGoal = await storage.getGoalByExercise(req.userId!, goal.exercise);
+      res.status(201).json(freshGoal || goal);
     } catch (error) {
       console.error("API error creating goal:", error);
       res.status(500).json({ message: "Failed to create goal" });
