@@ -61,8 +61,15 @@ export interface IStorage {
     currentPeriodEndsAt: Date | null;
   }>): Promise<User | undefined>;
   updateUser(id: string, data: Partial<{
+    username: string;
+    email: string | null;
     passwordHash: string;
     mustChangePassword: boolean;
+    fullName: string | null;
+    dateOfBirth: Date | null;
+    sex: string | null;
+    bodyweight: number | null;
+    heightInches: number | null;
   }>): Promise<User | undefined>;
 
   // Workout methods — all scoped by userId
@@ -209,8 +216,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, data: Partial<{
+    username: string;
+    email: string | null;
     passwordHash: string;
     mustChangePassword: boolean;
+    fullName: string | null;
+    dateOfBirth: Date | null;
+    sex: string | null;
+    bodyweight: number | null;
+    heightInches: number | null;
   }>): Promise<User | undefined> {
     const [user] = await db
       .update(users)
