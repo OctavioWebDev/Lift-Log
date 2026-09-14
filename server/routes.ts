@@ -12,7 +12,7 @@ import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
 import { searchFoods } from "./food";
 import { registerApiV1Routes } from "./routes/api-v1";
 import { MEET_LIFTS, PREMADE_DURATIONS, generatePremadePlan, generateCustomPlan, groupEntriesByWeek } from "./meet-prep";
-import { avatarUpload, deleteAvatarFile } from "./avatar-upload";
+import { avatarUpload, resizeAndSaveAvatar, deleteAvatarFile } from "./avatar-upload";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -371,13 +371,23 @@ export async function registerRoutes(
           });
 
         if (err) {
-          return renderResult(err.message || "Failed to upload image", false);
+          const message = err.code === "LIMIT_FILE_SIZE"
+            ? "That image is too large. Please use a photo under 15MB."
+            : err.message || "Failed to upload image";
+          return renderResult(message, false);
         }
         if (!req.file) {
           return renderResult("Choose an image to upload", false);
         }
 
-        const newAvatarUrl = `/avatars/${req.file.filename}`;
+        let newAvatarUrl: string;
+        try {
+          newAvatarUrl = await resizeAndSaveAvatar(userId, req.file.buffer);
+        } catch (resizeError) {
+          console.error("Error resizing avatar:", resizeError);
+          return renderResult("Could not read that image. Try a different photo.", false);
+        }
+
         deleteAvatarFile(currentUser.avatarUrl);
         const updatedUser = await storage.updateUser(userId, { avatarUrl: newAvatarUrl });
 

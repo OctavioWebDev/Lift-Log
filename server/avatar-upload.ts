@@ -1,4 +1,5 @@
 import multer from "multer";
+import sharp from "sharp";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -7,31 +8,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Served directly by the express.static("public") mount in server/index.ts,
-// so an uploaded file is reachable at /avatars/<filename> with no extra route.
+// so a saved file is reachable at /avatars/<filename> with no extra route.
 export const AVATAR_DIR = path.join(__dirname, "../public/avatars");
 fs.mkdirSync(AVATAR_DIR, { recursive: true });
 
-const EXTENSION_BY_MIME: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-};
+const ACCEPTED_MIMETYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 export const avatarUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, AVATAR_DIR),
-    filename: (req, file, cb) => {
-      // Named from the session's userId and a timestamp — never from
-      // user-controlled input — so there's no path-traversal or
-      // extension-spoofing surface from the original filename.
-      const ext = EXTENSION_BY_MIME[file.mimetype] || "";
-      cb(null, `${req.session!.userId}-${Date.now()}${ext}`);
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  // Buffered in memory rather than written straight to disk — the file is
+  // always re-encoded by resizeAndSaveAvatar below before it's saved, so
+  // there's no point persisting the raw upload first.
+  storage: multer.memoryStorage(),
+  // Generous ceiling for the RAW file straight off a phone camera (a
+  // single modern smartphone photo commonly runs 8-15MB). This is not the
+  // size anything ends up stored at — resizeAndSaveAvatar always shrinks
+  // the image down before it touches disk.
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (EXTENSION_BY_MIME[file.mimetype]) {
+    if (ACCEPTED_MIMETYPES.has(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error("Only JPEG, PNG, WEBP, or GIF images are allowed"));
@@ -39,9 +33,25 @@ export const avatarUpload = multer({
   },
 });
 
-// Best-effort cleanup of a previously uploaded avatar file when it's
-// replaced or removed — avatarUrl is always "/avatars/<filename>" (set
-// right below by our own upload handler), never arbitrary user input.
+// Resizes/compresses an uploaded avatar down to a small square JPEG —
+// regardless of how large or what (accepted) format the original was —
+// and writes it to disk under a userId+timestamp filename that's never
+// derived from user input.
+export async function resizeAndSaveAvatar(userId: string, buffer: Buffer): Promise<string> {
+  const resized = await sharp(buffer)
+    .rotate() // respect EXIF orientation (phone cameras rely on this)
+    .resize(512, 512, { fit: "cover" })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+
+  const filename = `${userId}-${Date.now()}.jpg`;
+  await fs.promises.writeFile(path.join(AVATAR_DIR, filename), resized);
+  return `/avatars/${filename}`;
+}
+
+// Best-effort cleanup of a previously saved avatar file when it's replaced
+// or removed — avatarUrl is always "/avatars/<filename>" (set by
+// resizeAndSaveAvatar above), never arbitrary user input.
 export function deleteAvatarFile(avatarUrl: string | null | undefined) {
   if (!avatarUrl || !avatarUrl.startsWith("/avatars/")) return;
   const filePath = path.join(AVATAR_DIR, path.basename(avatarUrl));
