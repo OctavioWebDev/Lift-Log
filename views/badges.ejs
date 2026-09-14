@@ -1,0 +1,66 @@
+<%- include('partials/header') %>
+
+<%
+  const CATEGORY_LABELS = { strength: 'Strength Clubs', consistency: 'Consistency', pr: 'Personal Records' };
+  const CATEGORY_BLURBS = {
+    strength: 'Hit these estimated 1-rep max milestones on the big three.',
+    consistency: 'Keep showing up — total sets logged and weekly training streaks.',
+    pr: 'Celebrate every new best you set along the way.',
+  };
+%>
+
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <h1 class="text-2xl font-bold text-brand-900">Badges</h1>
+        <p class="text-brand-600 mt-1">Milestones you've unlocked from your training history.</p>
+      </div>
+      <div class="text-right">
+        <p class="text-3xl font-bold text-yellow-500"><%= earnedCount %><span class="text-brand-600 text-lg">/<%= totalCount %></span></p>
+        <p class="text-xs text-brand-600 uppercase tracking-wide">Earned</p>
+      </div>
+    </div>
+    <div class="w-full bg-gray-800 rounded-full h-2 mt-4">
+      <div class="bg-yellow-500 h-2 rounded-full transition-all duration-500" style="width: <%= totalCount > 0 ? (earnedCount / totalCount) * 100 : 0 %>%"></div>
+    </div>
+  </div>
+
+  <% ['strength', 'consistency', 'pr'].forEach(function(category) { %>
+    <% const categoryBadges = badges.filter(b => b.category === category); %>
+    <div class="bg-gray-900 rounded-lg border border-gray-800">
+      <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800">
+        <h2 class="text-lg sm:text-xl font-bold text-brand-900"><%= CATEGORY_LABELS[category] %></h2>
+        <p class="text-sm text-brand-600 mt-0.5"><%= CATEGORY_BLURBS[category] %></p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6">
+        <% categoryBadges.forEach(function(badge) { %>
+          <% const isEarned = !!badge.earnedAt; %>
+          <div class="rounded-lg border p-4 <%= isEarned ? 'border-yellow-600 bg-yellow-950 bg-opacity-20' : 'border-gray-800 bg-gray-950' %>">
+            <div class="flex items-start gap-3">
+              <span class="text-3xl leading-none <%= isEarned ? '' : 'grayscale opacity-40' %>"><%= badge.icon %></span>
+              <div class="min-w-0 flex-1">
+                <p class="font-bold <%= isEarned ? 'text-yellow-500' : 'text-brand-700' %>"><%= badge.name %></p>
+                <p class="text-xs text-brand-600 mt-0.5"><%= badge.description %></p>
+                <% if (isEarned) { %>
+                  <p class="text-xs text-brand-500 mt-2">
+                    Earned <%= new Date(badge.earnedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                  </p>
+                <% } else if (badge.progress) { %>
+                  <% const pct = Math.min((badge.progress.current / badge.progress.target) * 100, 100); %>
+                  <div class="w-full bg-gray-800 rounded-full h-1.5 mt-2">
+                    <div class="bg-brand-600 h-1.5 rounded-full" style="width: <%= pct %>%"></div>
+                  </div>
+                  <p class="text-xs text-brand-500 mt-1"><%= badge.progress.current %> / <%= badge.progress.target %></p>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  <% }); %>
+</div>
+
+<%- include('partials/footer') %>

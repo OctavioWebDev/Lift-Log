@@ -322,6 +322,7 @@ export function registerApiV1Routes(app: Express) {
       }
       const workoutSet = await storage.createWorkoutSet(result.data);
       await storage.syncGoalCurrentFromHistory(req.userId!, workoutSet.exercise);
+      await storage.checkAndAwardBadges(req.userId!);
       res.status(201).json(workoutSet);
     } catch (error) {
       console.error("API error creating workout set:", error);
@@ -344,6 +345,7 @@ export function registerApiV1Routes(app: Express) {
       if (previous && previous.exercise !== workoutSet.exercise) {
         await storage.syncGoalCurrentFromHistory(req.userId!, previous.exercise);
       }
+      await storage.checkAndAwardBadges(req.userId!);
       res.json(workoutSet);
     } catch (error) {
       console.error("API error updating workout set:", error);
