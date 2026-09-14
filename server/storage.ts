@@ -136,6 +136,16 @@ export interface IStorage {
   getExerciseNames(userId: string): Promise<string[]>;
   getStrongestExercise(userId: string): Promise<string | undefined>;
   getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]>;
+  // One row per exercise the user has logged, with their best-ever
+  // estimated 1RM (Epley) for it — used on the admin user-detail page.
+  // Excludes not-yet-due meet-prep entries, same as the methods above.
+  getBestLiftsByExercise(userId: string): Promise<Array<{
+    exercise: string;
+    weight: number;
+    reps: number;
+    estimatedOneRepMax: number;
+    date: Date;
+  }>>;
   getWorkoutDatesInRange(userId: string, days: number): Promise<string[]>;
   getNutritionHistory(userId: string, days: number): Promise<Array<{
     date: string;
@@ -568,6 +578,35 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return best;
+  }
+
+  async getBestLiftsByExercise(userId: string): Promise<Array<{
+    exercise: string;
+    weight: number;
+    reps: number;
+    estimatedOneRepMax: number;
+    date: Date;
+  }>> {
+    const rows = await db
+      .select()
+      .from(workoutSets)
+      .where(and(eq(workoutSets.userId, userId), excludeUpcomingPlanEntries(startOfUTCDay(new Date()))));
+
+    const bestByExercise = new Map<string, { exercise: string; weight: number; reps: number; estimatedOneRepMax: number; date: Date }>();
+    for (const row of rows) {
+      const estimatedOneRepMax = Math.round(row.weight * (1 + row.reps / 30));
+      const existing = bestByExercise.get(row.exercise);
+      if (!existing || estimatedOneRepMax > existing.estimatedOneRepMax) {
+        bestByExercise.set(row.exercise, {
+          exercise: row.exercise,
+          weight: row.weight,
+          reps: row.reps,
+          estimatedOneRepMax,
+          date: row.date instanceof Date ? row.date : new Date(row.date),
+        });
+      }
+    }
+    return Array.from(bestByExercise.values()).sort((a, b) => b.estimatedOneRepMax - a.estimatedOneRepMax);
   }
 
   async getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]> {
