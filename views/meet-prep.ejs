@@ -276,6 +276,7 @@
                 <div class="flex items-start gap-3">
                   <input type="radio" name="templateId" value="<%= t.id %>" class="mt-1 accent-yellow-500"
                     data-weeks="<%= t.weeks %>" data-days-per-week="<%= t.daysPerWeek %>"
+                    data-requires-ohp="<%= t.requiresOhp ? '1' : '' %>" data-input-kind="<%= t.inputKind %>"
                     onchange="onTemplateChange(this)" <%= idx === 0 ? 'checked' : '' %>>
                   <div>
                     <p class="text-sm font-medium text-brand-900"><%= t.name %></p>
@@ -309,16 +310,20 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm font-medium text-brand-700 mb-1">Squat 1RM (lbs)</label>
+            <label id="template-squat-label" class="block text-sm font-medium text-brand-700 mb-1">Squat 1RM (lbs)</label>
             <input type="number" name="squatMax" min="1" required placeholder="315" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-brand-700 mb-1">Bench 1RM (lbs)</label>
+            <label id="template-bench-label" class="block text-sm font-medium text-brand-700 mb-1">Bench 1RM (lbs)</label>
             <input type="number" name="benchMax" min="1" required placeholder="225" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-brand-700 mb-1">Deadlift 1RM (lbs)</label>
+            <label id="template-deadlift-label" class="block text-sm font-medium text-brand-700 mb-1">Deadlift 1RM (lbs)</label>
             <input type="number" name="deadliftMax" min="1" required placeholder="365" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+          <div id="template-ohp-field" class="hidden">
+            <label id="template-ohp-label" class="block text-sm font-medium text-brand-700 mb-1">Overhead Press 1RM (lbs)</label>
+            <input type="number" name="ohpMax" min="1" placeholder="135" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-brand-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
           </div>
         </div>
 
@@ -397,6 +402,18 @@
   function onTemplateChange(radio) {
     const hint = document.getElementById('template-days-hint');
     hint.textContent = `(select exactly ${radio.dataset.daysPerWeek} days)`;
+
+    const ohpField = document.getElementById('template-ohp-field');
+    const ohpInput = ohpField.querySelector('input[name="ohpMax"]');
+    const requiresOhp = !!radio.dataset.requiresOhp;
+    ohpField.classList.toggle('hidden', !requiresOhp);
+    ohpInput.required = requiresOhp;
+
+    const noun = radio.dataset.inputKind === 'startingWeight' ? 'Starting Weight' : '1RM';
+    document.getElementById('template-squat-label').textContent = `Squat ${noun} (lbs)`;
+    document.getElementById('template-bench-label').textContent = `Bench ${noun} (lbs)`;
+    document.getElementById('template-deadlift-label').textContent = `Deadlift ${noun} (lbs)`;
+    document.getElementById('template-ohp-label').textContent = `Overhead Press ${noun} (lbs)`;
   }
   // Show the hint for whichever template is checked by default on load.
   (function initTemplateHint() {

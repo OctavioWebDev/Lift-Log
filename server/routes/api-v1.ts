@@ -675,6 +675,8 @@ export function registerApiV1Routes(app: Express) {
         description: t.description,
         weeks: t.weeks,
         daysPerWeek: t.daysPerWeek,
+        requiresOhp: t.requiresOhp ?? false,
+        inputKind: t.inputKind,
       })),
     });
   });

@@ -136,6 +136,8 @@ export interface MeetPrepTemplateSummary {
   description: string;
   weeks: number;
   daysPerWeek: number;
+  requiresOhp?: boolean;
+  inputKind: "oneRepMax" | "startingWeight";
 }
 
 export interface MeetPrepConfig {

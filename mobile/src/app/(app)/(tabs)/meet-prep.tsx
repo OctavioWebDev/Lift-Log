@@ -27,6 +27,7 @@ export default function MeetPrepScreen() {
   const [squatMax, setSquatMax] = useState("");
   const [benchMax, setBenchMax] = useState("");
   const [deadliftMax, setDeadliftMax] = useState("");
+  const [ohpMax, setOhpMax] = useState("");
   const [endDate, setEndDate] = useState("");
   const [sets, setSets] = useState("5");
   const [reps, setReps] = useState("5");
@@ -58,6 +59,7 @@ export default function MeetPrepScreen() {
     setSquatMax("");
     setBenchMax("");
     setDeadliftMax("");
+    setOhpMax("");
     setEndDate("");
     setSquatWeight("");
     setBenchWeight("");
@@ -79,7 +81,14 @@ export default function MeetPrepScreen() {
         planType === "premade"
           ? { ...base, weeks, squatMax: Number(squatMax), benchMax: Number(benchMax), deadliftMax: Number(deadliftMax) }
           : planType === "template"
-            ? { ...base, templateId, squatMax: Number(squatMax), benchMax: Number(benchMax), deadliftMax: Number(deadliftMax) }
+            ? {
+                ...base,
+                templateId,
+                squatMax: Number(squatMax),
+                benchMax: Number(benchMax),
+                deadliftMax: Number(deadliftMax),
+                ohpMax: ohpMax ? Number(ohpMax) : undefined,
+              }
             : {
                 ...base,
                 endDate,
@@ -302,33 +311,48 @@ export default function MeetPrepScreen() {
                     );
                   })}
                 </ThemedView>
-                {templateId && (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Select exactly {config?.templates.find((t) => t.id === templateId)?.daysPerWeek} training days
-                    above.
-                  </ThemedText>
-                )}
-                <TextInput
-                  style={styles.input}
-                  placeholder="Current Squat 1RM"
-                  keyboardType="decimal-pad"
-                  value={squatMax}
-                  onChangeText={setSquatMax}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Current Bench 1RM"
-                  keyboardType="decimal-pad"
-                  value={benchMax}
-                  onChangeText={setBenchMax}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Current Deadlift 1RM"
-                  keyboardType="decimal-pad"
-                  value={deadliftMax}
-                  onChangeText={setDeadliftMax}
-                />
+                {(() => {
+                  const selectedTemplate = config?.templates.find((t) => t.id === templateId);
+                  if (!selectedTemplate) return null;
+                  const noun = selectedTemplate.inputKind === "startingWeight" ? "Starting Weight" : "1RM";
+                  return (
+                    <>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Select exactly {selectedTemplate.daysPerWeek} training days above.
+                      </ThemedText>
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`Squat ${noun}`}
+                        keyboardType="decimal-pad"
+                        value={squatMax}
+                        onChangeText={setSquatMax}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`Bench ${noun}`}
+                        keyboardType="decimal-pad"
+                        value={benchMax}
+                        onChangeText={setBenchMax}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`Deadlift ${noun}`}
+                        keyboardType="decimal-pad"
+                        value={deadliftMax}
+                        onChangeText={setDeadliftMax}
+                      />
+                      {selectedTemplate.requiresOhp && (
+                        <TextInput
+                          style={styles.input}
+                          placeholder={`Overhead Press ${noun}`}
+                          keyboardType="decimal-pad"
+                          value={ohpMax}
+                          onChangeText={setOhpMax}
+                        />
+                      )}
+                    </>
+                  );
+                })()}
               </>
             )}
 
