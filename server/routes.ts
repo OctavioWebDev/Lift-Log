@@ -709,7 +709,12 @@ export async function registerRoutes(
         passwordHash,
       });
 
-      res.json({ username: user.username, tempPassword });
+      // Credentials go in the URL fragment, not the query string — the
+      // fragment is never sent to the server (no access logs, no Referer
+      // header), only read client-side by login.ejs's autofill script.
+      const loginLink = `${req.protocol}://${req.get("host")}/login#u=${encodeURIComponent(user.username)}&p=${encodeURIComponent(tempPassword)}`;
+
+      res.json({ username: user.username, tempPassword, loginLink });
     } catch (error) {
       console.error("Error creating client account:", error);
       res.status(500).json({ message: "Failed to create client account" });
