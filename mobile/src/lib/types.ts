@@ -97,7 +97,7 @@ export interface Profile extends PublicUser {
   heightInches: number | null;
 }
 
-export type MeetPrepType = "custom" | "premade";
+export type MeetPrepType = "custom" | "premade" | "template";
 
 export interface MeetPrep {
   id: number;
@@ -113,6 +113,9 @@ export interface MeetPrep {
   benchMax: number | null;
   deadliftMax: number | null;
   repScheme: string | null;
+  // Which catalog template (see MeetPrepTemplateSummary) generated this plan
+  // — only set when planType is "template".
+  templateId: string | null;
   createdAt: string;
 }
 
@@ -127,9 +130,18 @@ export interface MeetPrepEntry {
   meetPrepId: number | null;
 }
 
+export interface MeetPrepTemplateSummary {
+  id: string;
+  name: string;
+  description: string;
+  weeks: number;
+  daysPerWeek: number;
+}
+
 export interface MeetPrepConfig {
   meetLifts: string[];
   premadeDurations: number[];
+  templates: MeetPrepTemplateSummary[];
 }
 
 export type BadgeCategory = "strength" | "consistency" | "pr";

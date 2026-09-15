@@ -5,6 +5,7 @@
 // math is easiest to reason about (and test) in isolation from Express.
 
 import type { InsertMeetPrep } from "../shared/schema";
+import { generateTemplatePlan, MEET_PREP_TEMPLATES } from "./meet-prep-templates";
 
 export const MEET_LIFTS = ["Back Squat", "Bench Press", "Conventional Deadlift"] as const;
 export type MeetLift = (typeof MEET_LIFTS)[number];
@@ -145,13 +146,22 @@ export function generateCustomPlan(params: CustomPlanParams): GeneratedEntry[] {
 // entries — shared by the web app's POST /api/meet-prep and the mobile
 // API's POST /api/v1/meet-preps so the two surfaces can't drift apart on
 // what counts as a valid plan.
+type AnyGeneratedEntry = {
+  date: Date;
+  exercise: string;
+  sets: number;
+  reps: number;
+  weight: number;
+  rpe: number | null;
+};
+
 export function buildMeetPrepPlan(
   userId: string,
   body: any
-): { error: string } | { meetPrepInput: InsertMeetPrep; entries: GeneratedEntry[] } {
+): { error: string } | { meetPrepInput: InsertMeetPrep; entries: AnyGeneratedEntry[] } {
   const { planType, name, startDate, trainingDays } = body ?? {};
 
-  if (planType !== "custom" && planType !== "premade") {
+  if (planType !== "custom" && planType !== "premade" && planType !== "template") {
     return { error: "Invalid plan type" };
   }
   if (!startDate || isNaN(new Date(startDate).getTime())) {
@@ -165,15 +175,40 @@ export function buildMeetPrepPlan(
   }
   const parsedStartDate = new Date(startDate);
 
-  let entries: GeneratedEntry[];
+  let entries: AnyGeneratedEntry[];
   let endDate: Date;
   let weeks: number;
   let squatMax: number | null = null;
   let benchMax: number | null = null;
   let deadliftMax: number | null = null;
   let repScheme: string | null = null;
+  let templateId: string | null = null;
 
-  if (planType === "premade") {
+  if (planType === "template") {
+    const templateIdValue: string = typeof body.templateId === "string" ? body.templateId : "";
+    templateId = templateIdValue;
+    squatMax = parseFloat(body.squatMax);
+    benchMax = parseFloat(body.benchMax);
+    deadliftMax = parseFloat(body.deadliftMax);
+    if ([squatMax, benchMax, deadliftMax].some((m) => isNaN(m) || m <= 0)) {
+      return { error: "Enter your current Squat, Bench, and Deadlift 1RMs" };
+    }
+    const result = generateTemplatePlan({
+      templateId: templateIdValue,
+      startDate: parsedStartDate,
+      trainingDays: days,
+      squatMax,
+      benchMax,
+      deadliftMax,
+    });
+    if ("error" in result) {
+      return { error: result.error };
+    }
+    entries = result.entries;
+    const template = MEET_PREP_TEMPLATES.find((t) => t.id === templateId)!;
+    weeks = template.weeks;
+    endDate = entries.length ? entries[entries.length - 1].date : parsedStartDate;
+  } else if (planType === "premade") {
     weeks = parseInt(body.weeks);
     if (!(PREMADE_DURATIONS as readonly number[]).includes(weeks)) {
       return { error: "Duration must be 4, 8, 12, or 16 weeks" };
@@ -230,10 +265,18 @@ export function buildMeetPrepPlan(
     return { error: "No training days fall within that date range" };
   }
 
+  const defaultName =
+    planType === "template"
+      ? MEET_PREP_TEMPLATES.find((t) => t.id === templateId)?.name ?? "Template Plan"
+      : planType === "premade"
+        ? `${weeks}-Week Meet Prep`
+        : "Custom Meet Prep";
+
   const meetPrepInput: InsertMeetPrep = {
     userId,
-    name: (typeof name === "string" && name.trim()) || (planType === "premade" ? `${weeks}-Week Meet Prep` : "Custom Meet Prep"),
+    name: (typeof name === "string" && name.trim()) || defaultName,
     planType,
+    templateId,
     startDate: parsedStartDate,
     endDate,
     weeks,

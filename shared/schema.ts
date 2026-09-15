@@ -90,7 +90,10 @@ export const meetPreps = sqliteTable("meet_preps", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: text("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
-  planType: text("plan_type").notNull(), // 'custom' | 'premade'
+  planType: text("plan_type").notNull(), // 'custom' | 'premade' | 'template'
+  // Which catalog entry (see server/meet-prep-templates.ts) generated this
+  // plan — only set when planType is 'template'.
+  templateId: text("template_id"),
   startDate: integer("start_date", { mode: "timestamp" }).notNull(),
   endDate: integer("end_date", { mode: "timestamp" }).notNull(),
   weeks: integer("weeks").notNull(),

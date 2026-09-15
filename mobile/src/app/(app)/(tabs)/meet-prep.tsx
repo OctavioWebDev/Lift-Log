@@ -23,6 +23,7 @@ export default function MeetPrepScreen() {
   const [startDate, setStartDate] = useState("");
   const [trainingDays, setTrainingDays] = useState<Set<number>>(new Set());
   const [weeks, setWeeks] = useState<number | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [squatMax, setSquatMax] = useState("");
   const [benchMax, setBenchMax] = useState("");
   const [deadliftMax, setDeadliftMax] = useState("");
@@ -53,6 +54,7 @@ export default function MeetPrepScreen() {
     setStartDate("");
     setTrainingDays(new Set());
     setWeeks(null);
+    setTemplateId(null);
     setSquatMax("");
     setBenchMax("");
     setDeadliftMax("");
@@ -76,15 +78,17 @@ export default function MeetPrepScreen() {
       const payload =
         planType === "premade"
           ? { ...base, weeks, squatMax: Number(squatMax), benchMax: Number(benchMax), deadliftMax: Number(deadliftMax) }
-          : {
-              ...base,
-              endDate,
-              sets: Number(sets),
-              reps: Number(reps),
-              squatWeight: Number(squatWeight),
-              benchWeight: Number(benchWeight),
-              deadliftWeight: Number(deadliftWeight),
-            };
+          : planType === "template"
+            ? { ...base, templateId, squatMax: Number(squatMax), benchMax: Number(benchMax), deadliftMax: Number(deadliftMax) }
+            : {
+                ...base,
+                endDate,
+                sets: Number(sets),
+                reps: Number(reps),
+                squatWeight: Number(squatWeight),
+                benchWeight: Number(benchWeight),
+                deadliftWeight: Number(deadliftWeight),
+              };
       await api.meetPrep.create(payload);
       await queryClient.invalidateQueries({ queryKey: ["meetPreps"] });
       resetForm();
@@ -185,7 +189,7 @@ export default function MeetPrepScreen() {
         {showForm && (
           <ThemedView style={styles.form}>
             <ThemedView style={styles.row}>
-              {(["premade", "custom"] as MeetPrepType[]).map((t) => {
+              {(["premade", "template", "custom"] as MeetPrepType[]).map((t) => {
                 const selected = planType === t;
                 return (
                   <Pressable
@@ -193,7 +197,7 @@ export default function MeetPrepScreen() {
                     style={[styles.button, { flex: 1 }, !selected && { backgroundColor: "#e5e7eb" }]}
                     onPress={() => setPlanType(t)}>
                     <ThemedText style={[styles.buttonText, !selected && { color: "#111827" }]}>
-                      {t === "premade" ? "Premade" : "Custom"}
+                      {t === "premade" ? "Premade" : t === "template" ? "Template" : "Custom"}
                     </ThemedText>
                   </Pressable>
                 );
@@ -229,7 +233,7 @@ export default function MeetPrepScreen() {
               })}
             </ThemedView>
 
-            {planType === "premade" ? (
+            {planType === "premade" && (
               <>
                 <ThemedText type="small" themeColor="textSecondary">
                   Duration
@@ -269,7 +273,66 @@ export default function MeetPrepScreen() {
                   onChangeText={setDeadliftMax}
                 />
               </>
-            ) : (
+            )}
+
+            {planType === "template" && (
+              <>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Template
+                </ThemedText>
+                <ThemedView style={{ gap: 8 }}>
+                  {(config?.templates ?? []).map((t) => {
+                    const selected = templateId === t.id;
+                    return (
+                      <Pressable
+                        key={t.id}
+                        style={[styles.card, { alignItems: "flex-start" }, selected && { borderColor: "#212529" }]}
+                        onPress={() => setTemplateId(t.id)}>
+                        <ThemedView style={{ flex: 1 }}>
+                          <ThemedText style={styles.cardTitle}>{t.name}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {t.description}
+                          </ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {t.weeks} weeks · {t.daysPerWeek} days/week
+                          </ThemedText>
+                        </ThemedView>
+                        <ThemedText>{selected ? "●" : "○"}</ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </ThemedView>
+                {templateId && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Select exactly {config?.templates.find((t) => t.id === templateId)?.daysPerWeek} training days
+                    above.
+                  </ThemedText>
+                )}
+                <TextInput
+                  style={styles.input}
+                  placeholder="Current Squat 1RM"
+                  keyboardType="decimal-pad"
+                  value={squatMax}
+                  onChangeText={setSquatMax}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Current Bench 1RM"
+                  keyboardType="decimal-pad"
+                  value={benchMax}
+                  onChangeText={setBenchMax}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Current Deadlift 1RM"
+                  keyboardType="decimal-pad"
+                  value={deadliftMax}
+                  onChangeText={setDeadliftMax}
+                />
+              </>
+            )}
+
+            {planType === "custom" && (
               <>
                 <TextInput
                   style={styles.input}

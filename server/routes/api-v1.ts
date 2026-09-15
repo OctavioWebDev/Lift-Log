@@ -22,6 +22,7 @@ import {
 } from "../jwt";
 import { avatarUpload, resizeAndSaveAvatar, deleteAvatarFile } from "../avatar-upload";
 import { MEET_LIFTS, PREMADE_DURATIONS, buildMeetPrepPlan } from "../meet-prep";
+import { MEET_PREP_TEMPLATES } from "../meet-prep-templates";
 
 function publicUser(user: { id: string; username: string; email: string | null; isAdmin: boolean }) {
   return { id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin };
@@ -665,7 +666,17 @@ export function registerApiV1Routes(app: Express) {
   // Static config the mobile client needs to build the same create-plan form
   // the web app has, without hardcoding/duplicating these lists itself.
   app.get(`${base}/meet-prep/config`, requireApiAuth, async (_req, res) => {
-    res.json({ meetLifts: MEET_LIFTS, premadeDurations: PREMADE_DURATIONS });
+    res.json({
+      meetLifts: MEET_LIFTS,
+      premadeDurations: PREMADE_DURATIONS,
+      templates: MEET_PREP_TEMPLATES.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        weeks: t.weeks,
+        daysPerWeek: t.daysPerWeek,
+      })),
+    });
   });
 
   app.get(`${base}/meet-preps`, requireApiAuth, requireApiSubscription, async (req, res) => {

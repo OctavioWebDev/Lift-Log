@@ -12,6 +12,7 @@ import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
 import { searchFoods } from "./food";
 import { registerApiV1Routes } from "./routes/api-v1";
 import { MEET_LIFTS, PREMADE_DURATIONS, groupEntriesByWeek, buildMeetPrepPlan } from "./meet-prep";
+import { MEET_PREP_TEMPLATES } from "./meet-prep-templates";
 import { avatarUpload, resizeAndSaveAvatar, deleteAvatarFile } from "./avatar-upload";
 import { ALL_BADGES } from "@shared/badges";
 
@@ -1004,6 +1005,7 @@ export async function registerRoutes(
         pastPlans,
         meetLifts: MEET_LIFTS,
         premadeDurations: PREMADE_DURATIONS,
+        templates: MEET_PREP_TEMPLATES,
       });
     } catch (error) {
       console.error("Error rendering meet prep page:", error);
