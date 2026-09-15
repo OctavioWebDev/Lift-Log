@@ -31,6 +31,13 @@ import {
 import { db } from "./db";
 import { eq, desc, and, or, like, gte, lt, isNull } from "drizzle-orm";
 import { computeEarnedBadgeIds } from "./badges";
+import {
+  type BadgeDefinition,
+  ALL_BADGES,
+  STRENGTH_CLUBS,
+  TOTAL_WORKOUT_MILESTONES,
+  strengthBadgeId,
+} from "../shared/badges";
 
 function startOfUTCDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -158,6 +165,15 @@ export interface IStorage {
   // the badges newly earned by this call, if any — callers can use that to
   // surface a "badge earned!" notice.
   checkAndAwardBadges(userId: string): Promise<UserBadge[]>;
+  // Full badge catalog merged with this user's earned/locked state and
+  // progress toward the next tier — backs both the web /badges page and the
+  // mobile /api/v1/badges endpoint. Also catches up any badges the user
+  // already qualifies for but hasn't been awarded yet.
+  getBadgesView(userId: string): Promise<{
+    badges: Array<BadgeDefinition & { earnedAt: Date | null; progress: { current: number; target: number } | null }>;
+    earnedCount: number;
+    totalCount: number;
+  }>;
   getNutritionHistory(userId: string, days: number): Promise<Array<{
     date: string;
     calories: number;
@@ -654,6 +670,45 @@ export class DatabaseStorage implements IStorage {
       .insert(userBadges)
       .values(newIds.map((badgeId) => ({ userId, badgeId })))
       .returning();
+  }
+
+  async getBadgesView(userId: string): Promise<{
+    badges: Array<BadgeDefinition & { earnedAt: Date | null; progress: { current: number; target: number } | null }>;
+    earnedCount: number;
+    totalCount: number;
+  }> {
+    await this.checkAndAwardBadges(userId);
+    const earned = await this.getUserBadges(userId);
+    const earnedByBadgeId = new Map(earned.map((b) => [b.badgeId, b]));
+
+    const rows = await db
+      .select()
+      .from(workoutSets)
+      .where(and(eq(workoutSets.userId, userId), excludeUpcomingPlanEntries(startOfUTCDay(new Date()))));
+    const bestByExercise = new Map<string, number>();
+    for (const w of rows) {
+      const e1rm = w.weight * (1 + w.reps / 30);
+      if (e1rm > (bestByExercise.get(w.exercise) ?? 0)) bestByExercise.set(w.exercise, e1rm);
+    }
+
+    const progressByBadgeId = new Map<string, { current: number; target: number }>();
+    for (const club of STRENGTH_CLUBS) {
+      progressByBadgeId.set(strengthBadgeId(club.exercise, club.weight), {
+        current: Math.round(bestByExercise.get(club.exercise) ?? 0),
+        target: club.weight,
+      });
+    }
+    for (const m of TOTAL_WORKOUT_MILESTONES) {
+      progressByBadgeId.set(m.id, { current: rows.length, target: m.count });
+    }
+
+    const badges = ALL_BADGES.map((badge) => ({
+      ...badge,
+      earnedAt: earnedByBadgeId.get(badge.id)?.earnedAt ?? null,
+      progress: progressByBadgeId.get(badge.id) ?? null,
+    }));
+
+    return { badges, earnedCount: earned.length, totalCount: ALL_BADGES.length };
   }
 
   async getExerciseHistory(userId: string, exercise: string): Promise<WorkoutSet[]> {
