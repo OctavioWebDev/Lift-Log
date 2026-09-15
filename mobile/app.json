@@ -48,6 +48,13 @@
       ],
       "react-native-health-connect",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Chi-Rho Lifts uses your photos to set a profile picture.",
+          "cameraPermission": "Chi-Rho Lifts uses your camera to take a profile picture."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
