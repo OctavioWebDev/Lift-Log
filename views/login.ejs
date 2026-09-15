@@ -122,6 +122,22 @@
       btn.querySelector('.eye-icon').classList.toggle('hidden', show);
       btn.querySelector('.eye-off-icon').classList.toggle('hidden', !show);
     }
+
+    // Autofill from a temp-credentials link (see admin.ejs "Create Client
+    // Account") — credentials live in the URL fragment so they're never
+    // sent to the server or logged anywhere. Scrub the fragment immediately
+    // so it doesn't linger in browser history if the page is bookmarked,
+    // refreshed, or the URL is copied and shared onward afterward.
+    (function autofillFromLink() {
+      if (!location.hash) return;
+      const params = new URLSearchParams(location.hash.slice(1));
+      const username = params.get('u');
+      const password = params.get('p');
+      if (!username && !password) return;
+      if (username) document.getElementById('username').value = username;
+      if (password) document.getElementById('password').value = password;
+      history.replaceState(null, '', location.pathname + location.search);
+    })();
   </script>
 </body>
 </html>

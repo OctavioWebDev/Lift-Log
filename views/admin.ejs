@@ -97,9 +97,10 @@
 
           <form id="add-client-form" onsubmit="createClient(event)" class="hidden mt-4 space-y-3">
             <p class="text-xs text-brand-500">
-              Creates a free account (bypasses billing) with a temp password. Give the client
-              the username and temp password shown after creation — they'll be required to set
-              their own password on first login.
+              Creates a free account (bypasses billing) with a temp password. Send the client the
+              login link shown after creation — it opens the sign-in page with their username and
+              temp password already filled in — or give them the credentials directly. Either way
+              they'll be required to set their own password on first login.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -383,6 +384,17 @@ function filterUsers() {
   });
 }
 
+async function copyLoginLink(btn) {
+  try {
+    await navigator.clipboard.writeText(btn.dataset.link);
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  } catch (error) {
+    alert('Could not copy — long-press or select the link text manually.');
+  }
+}
+
 // Create a free coaching-client account
 async function createClient(event) {
   event.preventDefault();
@@ -408,9 +420,14 @@ async function createClient(event) {
       errorEl.classList.remove('hidden');
       return;
     }
-    createdEl.innerHTML = `Account created. Give the client these credentials — shown only once:<br>` +
+    createdEl.innerHTML = `Account created — shown only once:<br>` +
       `<strong>Username:</strong> ${data.username}<br>` +
-      `<strong>Temp Password:</strong> ${data.tempPassword}`;
+      `<strong>Temp Password:</strong> ${data.tempPassword}<br>` +
+      `<div class="mt-2 flex items-center gap-2">` +
+      `<button type="button" onclick="copyLoginLink(this)" data-link="${data.loginLink.replace(/"/g, '&quot;')}" ` +
+      `class="bg-green-900 hover:bg-green-800 text-green-200 text-xs font-medium px-3 py-1.5 rounded-lg transition">Copy Login Link</button>` +
+      `<span class="text-xs text-green-500">Opens the login page with these credentials already filled in.</span>` +
+      `</div>`;
     createdEl.classList.remove('hidden');
     usernameInput.value = '';
     emailInput.value = '';
