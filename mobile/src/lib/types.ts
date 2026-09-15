@@ -87,3 +87,65 @@ export interface BillingStatus {
   subscriptionInterval: string | null;
   currentPeriodEndsAt: string | null;
 }
+
+export interface Profile extends PublicUser {
+  avatarUrl: string | null;
+  fullName: string | null;
+  dateOfBirth: string | null;
+  sex: string | null;
+  bodyweight: number | null;
+  heightInches: number | null;
+}
+
+export type MeetPrepType = "custom" | "premade";
+
+export interface MeetPrep {
+  id: number;
+  userId: string;
+  name: string;
+  planType: MeetPrepType;
+  startDate: string;
+  endDate: string;
+  weeks: number;
+  // JSON-encoded array of weekday numbers (0=Sun..6=Sat) the plan trains on.
+  trainingDays: string;
+  squatMax: number | null;
+  benchMax: number | null;
+  deadliftMax: number | null;
+  repScheme: string | null;
+  createdAt: string;
+}
+
+export interface MeetPrepEntry {
+  id: number;
+  exercise: string;
+  sets: number;
+  reps: number;
+  weight: number;
+  rpe: number | null;
+  date: string;
+  meetPrepId: number | null;
+}
+
+export interface MeetPrepConfig {
+  meetLifts: string[];
+  premadeDurations: number[];
+}
+
+export type BadgeCategory = "strength" | "consistency" | "pr";
+
+export interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  category: BadgeCategory;
+  icon: string;
+  earnedAt: string | null;
+  progress: { current: number; target: number } | null;
+}
+
+export interface BadgesView {
+  badges: Badge[];
+  earnedCount: number;
+  totalCount: number;
+}

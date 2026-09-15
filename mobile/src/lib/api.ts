@@ -2,11 +2,16 @@ import { tokenStore } from "./token-store";
 import { setStorageItemAsync } from "./storage";
 import type {
   AuthResponse,
+  BadgesView,
   BillingStatus,
   FoodSearchResult,
   Goal,
+  MeetPrep,
+  MeetPrepConfig,
+  MeetPrepEntry,
   NutritionGoal,
   NutritionLog,
+  Profile,
   PublicUser,
   SubscriptionStatus,
   TokenPair,
@@ -46,10 +51,14 @@ async function refreshSession(): Promise<boolean> {
 
 async function request<T>(path: string, options: RequestInit = {}, allowRefresh = true): Promise<T> {
   const accessToken = tokenStore.getAccessToken();
+  // A FormData body (avatar upload) needs its own multipart boundary in
+  // Content-Type, which fetch/RN sets automatically — forcing
+  // application/json here would break the upload.
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
@@ -117,6 +126,30 @@ export const api = {
     saveGoals: (data: Record<string, unknown>) => request<NutritionGoal>("/api/v1/nutrition/goals", json(data)),
   },
   foodSearch: (q: string) => request<FoodSearchResult[]>(`/api/v1/food/search?q=${encodeURIComponent(q)}`),
+  profile: {
+    get: () => request<{ user: Profile }>("/api/v1/profile"),
+    update: (data: Record<string, unknown>) =>
+      request<{ user: Profile }>("/api/v1/profile", { method: "PATCH", body: JSON.stringify(data) }),
+    // `file` is the shape expo-image-picker's result maps to for a multipart
+    // upload: { uri, name, type }. RN's fetch polyfill turns this into a real
+    // file part when appended to FormData.
+    uploadAvatar: (file: { uri: string; name: string; type: string }) => {
+      const form = new FormData();
+      form.append("avatar", file as unknown as Blob);
+      return request<{ user: Profile }>("/api/v1/profile/avatar", { method: "POST", body: form });
+    },
+    removeAvatar: () => request<{ user: Profile }>("/api/v1/profile/avatar", { method: "DELETE" }),
+  },
+  meetPrep: {
+    config: () => request<MeetPrepConfig>("/api/v1/meet-prep/config"),
+    list: () => request<{ plans: MeetPrep[] }>("/api/v1/meet-preps"),
+    detail: (id: number) => request<{ plan: MeetPrep; entries: MeetPrepEntry[] }>(`/api/v1/meet-preps/${id}`),
+    create: (data: Record<string, unknown>) => request<{ meetPrep: MeetPrep }>("/api/v1/meet-preps", json(data)),
+    remove: (id: number) => request<void>(`/api/v1/meet-preps/${id}`, { method: "DELETE" }),
+  },
+  badges: {
+    all: () => request<BadgesView>("/api/v1/badges"),
+  },
 };
 
-export { refreshSession, REFRESH_TOKEN_KEY };
+export { refreshSession, REFRESH_TOKEN_KEY, API_URL };
