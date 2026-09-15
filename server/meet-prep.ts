@@ -187,11 +187,14 @@ export function buildMeetPrepPlan(
   if (planType === "template") {
     const templateIdValue: string = typeof body.templateId === "string" ? body.templateId : "";
     templateId = templateIdValue;
+    const template = MEET_PREP_TEMPLATES.find((t) => t.id === templateIdValue);
     squatMax = parseFloat(body.squatMax);
     benchMax = parseFloat(body.benchMax);
     deadliftMax = parseFloat(body.deadliftMax);
+    const ohpMax = parseFloat(body.ohpMax);
     if ([squatMax, benchMax, deadliftMax].some((m) => isNaN(m) || m <= 0)) {
-      return { error: "Enter your current Squat, Bench, and Deadlift 1RMs" };
+      const noun = template?.inputKind === "startingWeight" ? "starting weight" : "1RM";
+      return { error: `Enter your current Squat, Bench, and Deadlift ${noun}s` };
     }
     const result = generateTemplatePlan({
       templateId: templateIdValue,
@@ -200,13 +203,13 @@ export function buildMeetPrepPlan(
       squatMax,
       benchMax,
       deadliftMax,
+      ohpMax,
     });
     if ("error" in result) {
       return { error: result.error };
     }
     entries = result.entries;
-    const template = MEET_PREP_TEMPLATES.find((t) => t.id === templateId)!;
-    weeks = template.weeks;
+    weeks = template!.weeks;
     endDate = entries.length ? entries[entries.length - 1].date : parsedStartDate;
   } else if (planType === "premade") {
     weeks = parseInt(body.weeks);
