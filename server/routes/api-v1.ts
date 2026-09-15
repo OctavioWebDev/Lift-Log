@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import {
+  type User,
   insertWorkoutSetSchema,
   updateWorkoutSetSchema,
   insertGoalSchema,
@@ -19,9 +20,26 @@ import {
   verifyRefreshToken,
   refreshTokenExpiryDate,
 } from "../jwt";
+import { avatarUpload, resizeAndSaveAvatar, deleteAvatarFile } from "../avatar-upload";
+import { MEET_LIFTS, PREMADE_DURATIONS, buildMeetPrepPlan } from "../meet-prep";
 
 function publicUser(user: { id: string; username: string; email: string | null; isAdmin: boolean }) {
   return { id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin };
+}
+
+function fullProfile(user: User) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    isAdmin: user.isAdmin,
+    avatarUrl: user.avatarUrl,
+    fullName: user.fullName,
+    dateOfBirth: user.dateOfBirth,
+    sex: user.sex,
+    bodyweight: user.bodyweight,
+    heightInches: user.heightInches,
+  };
 }
 
 async function issueTokenPair(userId: string) {
@@ -486,6 +504,243 @@ export function registerApiV1Routes(app: Express) {
     } catch (error) {
       console.error("API food search error:", error);
       res.status(500).json([]);
+    }
+  });
+
+  // ==========================================================================
+  // PROFILE
+  // ==========================================================================
+  app.get(`${base}/profile`, requireApiAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+      res.json({ user: fullProfile(user) });
+    } catch (error) {
+      console.error("API error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  // Accepts any subset of account fields (username, email) and lifter
+  // profile fields (fullName, dateOfBirth, sex, bodyweight, heightInches) —
+  // the web app splits these across two forms for UX reasons, but a single
+  // partial-update endpoint is simpler for a JSON API. Validation mirrors
+  // POST /profile/account and /profile/lifter-info.
+  app.patch(`${base}/profile`, requireApiAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "User not found" });
+
+      const { username, email, fullName, dateOfBirth, sex, bodyweight, heightInches } = req.body ?? {};
+      const updates: Partial<{
+        username: string;
+        email: string | null;
+        fullName: string | null;
+        dateOfBirth: Date | null;
+        sex: string | null;
+        bodyweight: number | null;
+        heightInches: number | null;
+      }> = {};
+
+      if (username !== undefined) {
+        if (!username) return res.status(400).json({ message: "Username is required" });
+        const usernameValidation = isValidUsername(username);
+        if (!usernameValidation.valid) return res.status(400).json({ message: usernameValidation.message });
+        if (username !== currentUser.username) {
+          const existing = await storage.getUserByUsername(username);
+          if (existing) return res.status(400).json({ message: "Username already taken" });
+        }
+        updates.username = username;
+      }
+      if (email !== undefined) {
+        if (email && !isValidEmail(email)) return res.status(400).json({ message: "Invalid email address" });
+        if (email) {
+          const allUsers = await storage.getAllUsers();
+          if (allUsers.some((u) => u.email === email && u.id !== userId)) {
+            return res.status(400).json({ message: "Email already registered" });
+          }
+        }
+        updates.email = email || null;
+      }
+      if (fullName !== undefined) {
+        updates.fullName = (typeof fullName === "string" && fullName.trim()) || null;
+      }
+      if (dateOfBirth !== undefined) {
+        if (dateOfBirth && (isNaN(new Date(dateOfBirth).getTime()) || new Date(dateOfBirth) > new Date())) {
+          return res.status(400).json({ message: "Enter a valid date of birth" });
+        }
+        updates.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+      }
+      if (sex !== undefined) {
+        if (sex && !["male", "female", "prefer_not_to_say"].includes(sex)) {
+          return res.status(400).json({ message: "Invalid selection" });
+        }
+        updates.sex = sex || null;
+      }
+      if (bodyweight !== undefined) {
+        if (bodyweight === null || bodyweight === "") {
+          updates.bodyweight = null;
+        } else {
+          const parsed = parseFloat(bodyweight);
+          if (isNaN(parsed) || parsed <= 0) return res.status(400).json({ message: "Enter a valid bodyweight" });
+          updates.bodyweight = parsed;
+        }
+      }
+      if (heightInches !== undefined) {
+        if (heightInches === null || heightInches === "") {
+          updates.heightInches = null;
+        } else {
+          const parsed = parseFloat(heightInches);
+          if (isNaN(parsed) || parsed <= 0) return res.status(400).json({ message: "Enter a valid height" });
+          updates.heightInches = parsed;
+        }
+      }
+
+      const updatedUser = await storage.updateUser(userId, updates);
+      res.json({ user: fullProfile(updatedUser || currentUser) });
+    } catch (error) {
+      console.error("API error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Wrapped manually (rather than passed as normal middleware) so a
+  // rejected file type or oversized upload comes back as a normal JSON
+  // error instead of hitting Express's default error handler — same
+  // reasoning as the web app's POST /profile/avatar.
+  app.post(`${base}/profile/avatar`, requireApiAuth, (req, res) => {
+    avatarUpload.single("avatar")(req, res, async (err: any) => {
+      try {
+        const userId = req.userId!;
+        const currentUser = await storage.getUser(userId);
+        if (!currentUser) return res.status(401).json({ message: "User not found" });
+
+        if (err) {
+          const message = err.code === "LIMIT_FILE_SIZE"
+            ? "That image is too large. Please use a photo under 15MB."
+            : err.message || "Failed to upload image";
+          return res.status(400).json({ message });
+        }
+        if (!req.file) {
+          return res.status(400).json({ message: "Choose an image to upload" });
+        }
+
+        let newAvatarUrl: string;
+        try {
+          newAvatarUrl = await resizeAndSaveAvatar(userId, req.file.buffer);
+        } catch (resizeError) {
+          console.error("API error resizing avatar:", resizeError);
+          return res.status(400).json({ message: "Could not read that image. Try a different photo." });
+        }
+
+        deleteAvatarFile(currentUser.avatarUrl);
+        const updatedUser = await storage.updateUser(userId, { avatarUrl: newAvatarUrl });
+        res.json({ user: fullProfile(updatedUser || currentUser) });
+      } catch (error) {
+        console.error("API error uploading avatar:", error);
+        res.status(500).json({ message: "Failed to update profile" });
+      }
+    });
+  });
+
+  app.delete(`${base}/profile/avatar`, requireApiAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "User not found" });
+
+      deleteAvatarFile(currentUser.avatarUrl);
+      const updatedUser = await storage.updateUser(userId, { avatarUrl: null });
+      res.json({ user: fullProfile(updatedUser || currentUser) });
+    } catch (error) {
+      console.error("API error removing avatar:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // ==========================================================================
+  // MEET PREP
+  // ==========================================================================
+  // Static config the mobile client needs to build the same create-plan form
+  // the web app has, without hardcoding/duplicating these lists itself.
+  app.get(`${base}/meet-prep/config`, requireApiAuth, async (_req, res) => {
+    res.json({ meetLifts: MEET_LIFTS, premadeDurations: PREMADE_DURATIONS });
+  });
+
+  app.get(`${base}/meet-preps`, requireApiAuth, requireApiSubscription, async (req, res) => {
+    try {
+      res.json({ plans: await storage.getMeetPreps(req.userId!) });
+    } catch (error) {
+      console.error("API error fetching meet preps:", error);
+      res.status(500).json({ message: "Failed to fetch meet preps" });
+    }
+  });
+
+  app.get(`${base}/meet-preps/:id`, requireApiAuth, requireApiSubscription, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+      const plan = await storage.getMeetPrep(req.userId!, id);
+      if (!plan) return res.status(404).json({ message: "Meet prep plan not found" });
+      const entries = await storage.getWorkoutSetsForMeetPrep(req.userId!, id);
+      res.json({ plan, entries });
+    } catch (error) {
+      console.error("API error fetching meet prep plan:", error);
+      res.status(500).json({ message: "Failed to fetch meet prep plan" });
+    }
+  });
+
+  app.post(`${base}/meet-preps`, requireApiAuth, requireApiSubscription, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const result = buildMeetPrepPlan(userId, req.body);
+      if ("error" in result) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      const meetPrep = await storage.createMeetPrep(result.meetPrepInput);
+      await storage.createWorkoutSetsBulk(
+        result.entries.map((e) => ({
+          userId,
+          meetPrepId: meetPrep.id,
+          exercise: e.exercise,
+          sets: e.sets,
+          reps: e.reps,
+          weight: e.weight,
+          rpe: e.rpe,
+          date: e.date,
+        }))
+      );
+
+      res.status(201).json({ meetPrep });
+    } catch (error) {
+      console.error("API error creating meet prep plan:", error);
+      res.status(500).json({ message: "Failed to create meet prep plan" });
+    }
+  });
+
+  app.delete(`${base}/meet-preps/:id`, requireApiAuth, requireApiSubscription, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+      await storage.deleteMeetPrep(req.userId!, id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("API error deleting meet prep plan:", error);
+      res.status(500).json({ message: "Failed to delete meet prep plan" });
+    }
+  });
+
+  // ==========================================================================
+  // BADGES
+  // ==========================================================================
+  app.get(`${base}/badges`, requireApiAuth, requireApiSubscription, async (req, res) => {
+    try {
+      res.json(await storage.getBadgesView(req.userId!));
+    } catch (error) {
+      console.error("API error fetching badges:", error);
+      res.status(500).json({ message: "Failed to fetch badges" });
     }
   });
 }

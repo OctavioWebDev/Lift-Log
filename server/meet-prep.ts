@@ -4,6 +4,8 @@
 // Workout Log on its date. Kept in its own module since the date/rotation
 // math is easiest to reason about (and test) in isolation from Express.
 
+import type { InsertMeetPrep } from "../shared/schema";
+
 export const MEET_LIFTS = ["Back Squat", "Bench Press", "Conventional Deadlift"] as const;
 export type MeetLift = (typeof MEET_LIFTS)[number];
 
@@ -137,4 +139,110 @@ export function generateCustomPlan(params: CustomPlanParams): GeneratedEntry[] {
     const exercise = MEET_LIFTS[i % MEET_LIFTS.length];
     return { date, exercise, sets, reps, weight: weights[exercise], rpe: null };
   });
+}
+
+// Validates a create-meet-prep request body and generates the plan's
+// entries — shared by the web app's POST /api/meet-prep and the mobile
+// API's POST /api/v1/meet-preps so the two surfaces can't drift apart on
+// what counts as a valid plan.
+export function buildMeetPrepPlan(
+  userId: string,
+  body: any
+): { error: string } | { meetPrepInput: InsertMeetPrep; entries: GeneratedEntry[] } {
+  const { planType, name, startDate, trainingDays } = body ?? {};
+
+  if (planType !== "custom" && planType !== "premade") {
+    return { error: "Invalid plan type" };
+  }
+  if (!startDate || isNaN(new Date(startDate).getTime())) {
+    return { error: "A valid start date is required" };
+  }
+  const days: number[] = Array.isArray(trainingDays)
+    ? Array.from(new Set(trainingDays.map((d: any) => parseInt(d)).filter((d: number) => !isNaN(d) && d >= 0 && d <= 6)))
+    : [];
+  if (days.length === 0) {
+    return { error: "Select at least one training day" };
+  }
+  const parsedStartDate = new Date(startDate);
+
+  let entries: GeneratedEntry[];
+  let endDate: Date;
+  let weeks: number;
+  let squatMax: number | null = null;
+  let benchMax: number | null = null;
+  let deadliftMax: number | null = null;
+  let repScheme: string | null = null;
+
+  if (planType === "premade") {
+    weeks = parseInt(body.weeks);
+    if (!(PREMADE_DURATIONS as readonly number[]).includes(weeks)) {
+      return { error: "Duration must be 4, 8, 12, or 16 weeks" };
+    }
+    squatMax = parseFloat(body.squatMax);
+    benchMax = parseFloat(body.benchMax);
+    deadliftMax = parseFloat(body.deadliftMax);
+    if ([squatMax, benchMax, deadliftMax].some((m) => isNaN(m) || m <= 0)) {
+      return { error: "Enter your current Squat, Bench, and Deadlift 1RMs" };
+    }
+    entries = generatePremadePlan({
+      startDate: parsedStartDate,
+      weeks,
+      trainingDays: days,
+      squatMax,
+      benchMax,
+      deadliftMax,
+    });
+    endDate = entries.length ? entries[entries.length - 1].date : parsedStartDate;
+  } else {
+    if (!body.endDate || isNaN(new Date(body.endDate).getTime())) {
+      return { error: "A valid finish date is required" };
+    }
+    endDate = new Date(body.endDate);
+    if (endDate < parsedStartDate) {
+      return { error: "Finish date must be after the start date" };
+    }
+    const sets = parseInt(body.sets);
+    const reps = parseInt(body.reps);
+    const squatWeight = parseFloat(body.squatWeight);
+    const benchWeight = parseFloat(body.benchWeight);
+    const deadliftWeight = parseFloat(body.deadliftWeight);
+    if (
+      [sets, reps].some((n) => isNaN(n) || n <= 0) ||
+      [squatWeight, benchWeight, deadliftWeight].some((n) => isNaN(n) || n < 0)
+    ) {
+      return { error: "Enter a valid rep scheme and starting weights for each lift" };
+    }
+    repScheme = `${sets}x${reps}`;
+    entries = generateCustomPlan({
+      startDate: parsedStartDate,
+      endDate,
+      trainingDays: days,
+      sets,
+      reps,
+      squatWeight,
+      benchWeight,
+      deadliftWeight,
+    });
+    weeks = Math.max(1, Math.ceil((endDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24 * 7)));
+  }
+
+  if (entries.length === 0) {
+    return { error: "No training days fall within that date range" };
+  }
+
+  const meetPrepInput: InsertMeetPrep = {
+    userId,
+    name: (typeof name === "string" && name.trim()) || (planType === "premade" ? `${weeks}-Week Meet Prep` : "Custom Meet Prep"),
+    planType,
+    startDate: parsedStartDate,
+    endDate,
+    weeks,
+    trainingDays: JSON.stringify(days),
+    squatMax,
+    benchMax,
+    deadliftMax,
+    repScheme,
+  };
+
+  return { meetPrepInput, entries };
 }

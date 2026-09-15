@@ -11,9 +11,9 @@ import { requireSubscription } from "./middleware/subscription";
 import { ALL_EXERCISES, EXERCISES } from "@shared/exercises";
 import { searchFoods } from "./food";
 import { registerApiV1Routes } from "./routes/api-v1";
-import { MEET_LIFTS, PREMADE_DURATIONS, generatePremadePlan, generateCustomPlan, groupEntriesByWeek } from "./meet-prep";
+import { MEET_LIFTS, PREMADE_DURATIONS, groupEntriesByWeek, buildMeetPrepPlan } from "./meet-prep";
 import { avatarUpload, resizeAndSaveAvatar, deleteAvatarFile } from "./avatar-upload";
-import { ALL_BADGES, STRENGTH_CLUBS, TOTAL_WORKOUT_MILESTONES, strengthBadgeId } from "@shared/badges";
+import { ALL_BADGES } from "@shared/badges";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -555,49 +555,13 @@ export async function registerRoutes(
 
   app.get("/badges", requireSubscription, async (req, res) => {
     try {
-      const userId = req.session!.userId!;
-      // Catches up any badges the user already qualifies for but hasn't
-      // been awarded yet — the only place that matters is existing history
-      // predating this feature, since every workout create/update also
-      // calls this.
-      await storage.checkAndAwardBadges(userId);
-      const earned = await storage.getUserBadges(userId);
-      const earnedByBadgeId = new Map(earned.map((b) => [b.badgeId, b]));
-
-      const now = new Date();
-      const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      const workouts = (await storage.getAllWorkoutSets(userId))
-        .filter((w) => !w.meetPrepId || new Date(w.date) < startOfToday);
-      const bestByExercise = new Map<string, number>();
-      for (const w of workouts) {
-        const e1rm = w.weight * (1 + w.reps / 30);
-        if (e1rm > (bestByExercise.get(w.exercise) ?? 0)) bestByExercise.set(w.exercise, e1rm);
-      }
-
-      const progressByBadgeId = new Map<string, { current: number; target: number }>();
-      for (const club of STRENGTH_CLUBS) {
-        progressByBadgeId.set(strengthBadgeId(club.exercise, club.weight), {
-          current: Math.round(bestByExercise.get(club.exercise) ?? 0),
-          target: club.weight,
-        });
-      }
-      for (const m of TOTAL_WORKOUT_MILESTONES) {
-        progressByBadgeId.set(m.id, { current: workouts.length, target: m.count });
-      }
-
-      const badges = ALL_BADGES.map((badge) => ({
-        ...badge,
-        earnedAt: earnedByBadgeId.get(badge.id)?.earnedAt ?? null,
-        progress: progressByBadgeId.get(badge.id) ?? null,
-      }));
-
+      const { badges, earnedCount, totalCount } = await storage.getBadgesView(req.session!.userId!);
       res.render("badges", {
         title: "Badges - Chi-Rho Lifts",
         user: req.user,
         badges,
-        earnedCount: earned.length,
-        totalCount: ALL_BADGES.length,
-        totalWorkouts: workouts.length,
+        earnedCount,
+        totalCount,
       });
     } catch (error) {
       console.error("Error rendering badges page:", error);
@@ -1050,103 +1014,14 @@ export async function registerRoutes(
   app.post("/api/meet-prep", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { planType, name, startDate, trainingDays } = req.body;
-
-      if (planType !== "custom" && planType !== "premade") {
-        return res.status(400).json({ message: "Invalid plan type" });
-      }
-      if (!startDate || isNaN(new Date(startDate).getTime())) {
-        return res.status(400).json({ message: "A valid start date is required" });
-      }
-      const days: number[] = Array.isArray(trainingDays)
-        ? Array.from(new Set(trainingDays.map((d: any) => parseInt(d)).filter((d: number) => !isNaN(d) && d >= 0 && d <= 6)))
-        : [];
-      if (days.length === 0) {
-        return res.status(400).json({ message: "Select at least one training day" });
-      }
-      const parsedStartDate = new Date(startDate);
-
-      let entries;
-      let endDate: Date;
-      let weeks: number;
-      let squatMax: number | null = null;
-      let benchMax: number | null = null;
-      let deadliftMax: number | null = null;
-      let repScheme: string | null = null;
-
-      if (planType === "premade") {
-        weeks = parseInt(req.body.weeks);
-        if (!(PREMADE_DURATIONS as readonly number[]).includes(weeks)) {
-          return res.status(400).json({ message: "Duration must be 4, 8, 12, or 16 weeks" });
-        }
-        squatMax = parseFloat(req.body.squatMax);
-        benchMax = parseFloat(req.body.benchMax);
-        deadliftMax = parseFloat(req.body.deadliftMax);
-        if ([squatMax, benchMax, deadliftMax].some((m) => isNaN(m) || m <= 0)) {
-          return res.status(400).json({ message: "Enter your current Squat, Bench, and Deadlift 1RMs" });
-        }
-        entries = generatePremadePlan({
-          startDate: parsedStartDate,
-          weeks,
-          trainingDays: days,
-          squatMax,
-          benchMax,
-          deadliftMax,
-        });
-        endDate = entries.length ? entries[entries.length - 1].date : parsedStartDate;
-      } else {
-        if (!req.body.endDate || isNaN(new Date(req.body.endDate).getTime())) {
-          return res.status(400).json({ message: "A valid finish date is required" });
-        }
-        endDate = new Date(req.body.endDate);
-        if (endDate < parsedStartDate) {
-          return res.status(400).json({ message: "Finish date must be after the start date" });
-        }
-        const sets = parseInt(req.body.sets);
-        const reps = parseInt(req.body.reps);
-        const squatWeight = parseFloat(req.body.squatWeight);
-        const benchWeight = parseFloat(req.body.benchWeight);
-        const deadliftWeight = parseFloat(req.body.deadliftWeight);
-        if (
-          [sets, reps].some((n) => isNaN(n) || n <= 0) ||
-          [squatWeight, benchWeight, deadliftWeight].some((n) => isNaN(n) || n < 0)
-        ) {
-          return res.status(400).json({ message: "Enter a valid rep scheme and starting weights for each lift" });
-        }
-        repScheme = `${sets}x${reps}`;
-        entries = generateCustomPlan({
-          startDate: parsedStartDate,
-          endDate,
-          trainingDays: days,
-          sets,
-          reps,
-          squatWeight,
-          benchWeight,
-          deadliftWeight,
-        });
-        weeks = Math.max(1, Math.ceil((endDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24 * 7)));
+      const result = buildMeetPrepPlan(userId, req.body);
+      if ("error" in result) {
+        return res.status(400).json({ message: result.error });
       }
 
-      if (entries.length === 0) {
-        return res.status(400).json({ message: "No training days fall within that date range" });
-      }
-
-      const meetPrep = await storage.createMeetPrep({
-        userId,
-        name: (typeof name === "string" && name.trim()) || (planType === "premade" ? `${weeks}-Week Meet Prep` : "Custom Meet Prep"),
-        planType,
-        startDate: parsedStartDate,
-        endDate,
-        weeks,
-        trainingDays: JSON.stringify(days),
-        squatMax,
-        benchMax,
-        deadliftMax,
-        repScheme,
-      });
-
+      const meetPrep = await storage.createMeetPrep(result.meetPrepInput);
       await storage.createWorkoutSetsBulk(
-        entries.map((e) => ({
+        result.entries.map((e) => ({
           userId,
           meetPrepId: meetPrep.id,
           exercise: e.exercise,
